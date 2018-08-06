@@ -1,0 +1,10 @@
+enum DATATYP
+{
+	VARCHAR1,
+	CHAR1,
+	FLOAT1,
+	DOUBLE1,
+	INTEGER ,
+	LONG,
+	DATE
+};

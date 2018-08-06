@@ -1,0 +1,154 @@
+#include <string.h>
+#include <stdio.h>
+#include <vector>
+#include <iostream>
+
+using namespace std;
+
+typedef struct
+{
+	char rawdata[4096];
+	size_t rawsz;
+	unsigned long lSeqno;
+	unsigned int iTankId;
+	unsigned int iFilecd;
+}CommonBuffer;
+
+typedef struct
+{
+	char acCardno[19+1];
+	char acAuthCd[6+1];
+	char acApprovalCd[6+1];
+	double RawAmt1;
+	double RawAmt2;
+}CommonData;
+
+typedef struct
+{
+	double amt;
+}TT;
+typedef struct
+{
+	int ibtno;
+}BT;
+
+
+class Parser
+{
+	public:	
+					Parser(){};
+
+					void Process(CommonBuffer & buf,CommonData & outData)
+					{
+							F1(buf.rawdata,buf.rawsz);
+							F2(buf.rawdata);
+							F3(buf.rawdata);
+							F4(buf.rawdata);
+					}
+
+	protected:
+					virtual void F1(char *,size_t)=0;		// prevalidation
+					virtual void F2(char *)=0;					// identify parsercd
+					virtual void F3(char *)=0;					// parsing
+					virtual void F4(char *)=0;					// bankwise parsing
+};
+
+class Dcf:public Parser
+{
+	public:
+					Dcf(){};
+
+	private:
+					void F1(char *data,size_t rawsz){};
+					void F2(char *data){};					
+					void F3(char *data){};					
+					virtual void F4(char *data){cout<<"Dcf F4 calling ..."<<endl;};
+
+};
+
+class Dcf_Migs:public Dcf
+{
+		void F4(char *data){ };
+};
+
+class Pg
+{
+	public:
+					Pg(){};
+					void Process(CommonBuffer & buf)
+					{
+							F1(buf.rawdata,buf.rawsz);
+							F2(buf.rawdata);
+							F3(buf.rawdata);
+							F4(buf.rawdata);
+					}
+					
+	private:
+					void F1(char *data,size_t rawsz){};
+					void F2(char *data){};					
+					void F3(char *data){};					
+					void F4(char *data){};
+};
+
+class TankMapper
+{
+		protected:
+		virtual void MapToOutStruct(const CommonData &,const unsigned int ,const unsigned long)=0;
+};
+
+class SettMapper:public TankMapper
+{
+		public:
+		void MapToOutStruct(const CommonData & data,const unsigned int iTankid,const unsigned long lRowId)
+		{
+				switch(iTankid)
+				{
+						case 1:	// TT to TT mapper
+										break;	
+						case 2:	// TT to BT mapper
+										break;	
+						case 3:	// TT to IAL mapper
+										break;	
+				}
+		};
+
+		private:
+		TT * ptrTT;
+		BT * ptrBT;
+};
+
+
+int main()
+{
+		const unsigned long lLoopSz=10000000;
+
+		Dcf_Migs * ptrPg=new Dcf_Migs();
+		//Pg * ptrPg=new Pg();
+		// prepare buffer data
+		CommonBuffer ObjBuff;
+		CommonData outData;
+		//vector<CommonBuffer> vecBuff;
+		SettMapper * model=new SettMapper();
+
+		// loop to prepare parsed data
+		for(unsigned long lx=0;lx<lLoopSz;++lx)
+		{
+			//ptrDcf->Process(ObjBuff);
+			ptrPg->Process(ObjBuff,outData);		// this will give common struct mapped with tankid
+			// this will be critical area so we cannot generate rowid of tank in this section..
+			// it is suggested that tank related activity to be done in another loop
+			model->MapToOutStruct(outData,ObjBuff.iTankId,ObjBuff.lSeqno);
+		}
+
+		// allocate id to each buffer as per tank
+		for(unsigned long lx=0;lx<lLoopSz;++lx)
+		{
+				//model->SetTankRowId(ObjBuff.iTankId,ObjBuff.lSeqno);
+		}
+
+		// enter into parallel loop to insert into tank and update from reference tank
+		for(unsigned long lx=0;lx<lLoopSz;++lx)
+		{
+
+		}
+}

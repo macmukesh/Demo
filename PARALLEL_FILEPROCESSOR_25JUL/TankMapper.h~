@@ -1,0 +1,17 @@
+#ifndef TANKMAPPER_H
+#define TANKMAPPER_H
+
+#include "TTModel.h"
+
+class TankMapper
+{
+	public:
+					TankMapper();
+					~TankMapper();
+					void Process(Model &);
+	protected:	
+					virtual void EnrichData(Model &)=0;
+					virtual void StoreRecordIntoMem(Model &)=0;
+};
+
+#endif

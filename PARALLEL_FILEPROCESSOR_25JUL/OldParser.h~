@@ -1,0 +1,257 @@
+/*
+	* BaseParser.h
+	*
+	*  Created on: Feb 1, 2018
+	*      Author: danish3216
+	*/
+
+#ifndef BASEPARSER_H_
+#define BASEPARSER_H_
+
+#include "CommonQueueData.h"
+#include "Utility.h"
+#include "StructTTUB.h"
+#include <cstdarg> //For variable arguments support
+#include <iostream>
+#include <cstring>
+#include <cstdio>
+#include <cstdlib>
+#include <iomanip>
+#include <fstream>
+#include <exception>
+#include <sstream>
+#include <errno.h>
+#include <vector> //**
+
+//enum's used
+#include "enum_FileCodeList.h"
+#include "enum_ParserCode.h"
+#include "enum_TT_Fields.h"
+#include "enum_DCF.h"
+#include "enum_ErrorCode.h"
+#include "enum_FileFmtTyp.h"
+#include "enum_PTLF_Fields.h"
+#include "enum_CYBER.h"
+#include "enum_IATA.h"
+#include "enum_RUPAYPG.h"
+#include "enum_PPFileParser.h"
+#include "enum_EZEETAP.h"
+#include "enum_CTF.h"
+#include "enum_ARDEF.h"
+
+#include "enum_MAESTRO.h"
+#include "enum_DCI_Fields.h"
+#include "enum_DCI_Fields.h"
+#include "enum_TT057_Fields.h"
+#include "enum_IP0040_Fields.h"
+#include "enum_IP0052_Fields.h"
+#include "enum_IP0053_Fields.h"
+#include "enum_IP0057_Fields.h"
+#include "enum_TT1123_Fields.h"
+
+#include "enum_BN.h"
+#include "enum_EP.h"
+#include "enum_EP_100.h"
+#include "enum_ACK02.h"
+#include "DateAPI.h"
+#include "PRStruct.h"
+#include "NWTab.h"
+#include "SCREPTab.h"
+
+#include "TMDataTab.h"
+#include "TTDataTab.h"
+#include "BHDataTab.h"
+#include "IALDataTab.h"
+//#include "T2MeStruct.h"
+#include "OBTab.h"
+#include "CALDataTab.h"
+#include "FileInfoDataTab.h"
+#include "CommonP5Struct.h"
+#include "CardTypeTab.h"
+//#define debug 1 //Enable this flag to print info
+
+#define NO_OF_CAT401_ROW 32
+#define NO_OF_CAT402_ROW 11
+
+
+#define MEMSET(Buffer)   	    memset(Buffer,0x00,sizeof(Buffer))
+using namespace std;
+
+typedef struct
+{
+		short int iStart;
+		short int iNoOfBytes;
+		short int iFieldVal;		// A=alphanumeric,B=alphabet,C=numeric
+}FC;
+
+typedef struct
+{
+		FC arrFC[1500];						// max 500 fields
+		short int iNoOfFields;		// no of fields
+		short int iParserCd;			// parser code	 
+}PC;
+
+
+
+
+
+class BaseParser {
+
+		TTDataTab						*ptrTtDataTab;
+		TTDataTab						*ptrParDataTab;
+		BHDataTab						*ptrBhDataTab;
+		IALDataTab					*ptrIALDataTab;
+		TMDataTab						*ptrTmDataTab;
+		OBTab								*ptrOBTab;
+		NWTab								*ptrNWTab;
+		NWTab								*ptrRJTab;
+		NWTab								*ptrSFTab;
+		NWTab								*ptrBNTab;
+		NWTab								*ptrRQTab;
+		NWTab								*ptrAFTab;		
+		NWTab								*ptrCBTab;
+		CardTypeTab					*ptrCrdTab;
+		StructCardType			*ptrCardType;
+		OnusBinStruct				*ptrOBStruct;
+		SCREPTab						*ptrScrTab;				
+		FileInfoDataTab			*ptrFileInfo; 	
+		NWTab								*ptrPRTab;					
+
+		char		NC[2+1];
+		char		key[20+1];
+		char		cMeMccFlag;
+		int			iIataLegCount;					//TODO Added for IATA
+		char		acTID[8+1];							//TODO Added for IATA (to maintian TID that changes after every CIH for MULTI IATA)
+		char		acDateInHdr[6+1];				//TODO Added for MVISA/PLANET file (Year is taken from header and used in transdate for data)
+		char		acMti[4+1];
+		char		acFuncCode[3+1];
+		int			iPos;			//Data Position Variable.
+		double	RAMT,RFEE,PAMT,PFEE;
+		char 		LINE401[2+1];
+		char 		LINE402[2+1];	
+		bool 		NFLAG;			
+		char 		Q;
+		long 		pp, Pos, lLineNo;
+		short int PKFSRNO, Column;
+
+		DateAPI ObjDate;
+		Utility ObjUtil;
+
+		private:
+
+		//objects used for file IO
+		ofstream foutReject;
+		stringstream ss;
+		string strFormat; // Format prepared for printing
+		string acRunDate;
+		int cdcode;
+		//Used for maintaining the info about number of files processed
+		FileInfo objFileInfo; //TODO ?? not used
+		// pointer to accumulator array //TODO To be replaced with SHM 
+		static const unsigned int maxParserCd=1000; 
+
+		//Used for converting numeric value from array buffer containing raw data
+		char acTemp[800+1];
+		char acLocAmt[20+1];
+		char acTemp1[50+1];
+		char acTemp2[50+1];
+		char acTemp3[150];
+		char acFILEID[50];
+
+		static int fnCmpTmnl1(const void *m1, const void *m2)
+		{
+				T2MeStruct *mi1 = (T2MeStruct *)m1;
+				T2MeStruct *mi2 = (T2MeStruct *)m2;
+				return strncmp(mi1->acTid, mi2->acTid, 8);
+		}
+
+		private: //Para to be directly accessed in derived
+
+		bool InitFlag;																	//	used for calling of InitInputStrFormats
+		static const int MAX_DATA_LEN=5121;
+		char rawdata[MAX_DATA_LEN];											//  rawdata
+		//char * rawdata;																// 	pointer to rawdata read from file
+		Utility ObjUtility; 														// 	util object
+
+		// Parsing
+		void F100(const char *,const int,const int,char *);		
+		void F110(const char *,const int,ParserCode &);				// 	identify parserid 		
+		void F120(const int,const ParserCode,StructTTUB &);		// 	mapping into normalised format
+		void F130(const int,StructTTUB &);										// 	Data enrichment i.e Fetch data from external tank
+		void F140(const ArrBufferData &,StructTTUB &);				// 	Addtooutputtank i.e Store into memory
+		void  fnTrimSpace(char *str);
+		int  openOrCreateFile(string fileName, ofstream &fout);					// 	open reject file
+		bool printLog(const ArrBufferData objData);			// 	print into reject file
+		bool CAT140(ErrCdList);										// 	controls function
+
+
+		//void F101(const char *,const int,const int,char *);		
+		//void F111(const char *,const int,ParserCode &);				// 	identify parserid 		
+		//void F121(const int,const ParserCode,StructTTUB &);		// 	mapping into normalised format
+		//void F131(const int,StructTTUB &);										// 	Data enrichment i.e Fetch data from external tank
+		//void F141(const ArrBufferData &,StructTTUB &);				// 	Addtooutputtank i.e Store into memory
+
+		//void F106(const char *,const int,const int,char *);		
+		//void F116(const char *,const int,ParserCode &);				// 	identify parserid 		
+		//void F126(const int,const ParserCode,StructTTUB &);		// 	mapping into normalised format
+		//void F136(const int,StructTTUB &);										// 	Data enrichment i.e Fetch data from external tank
+		//void F146(const ArrBufferData &,StructTTUB &);				// 	Addtooutputtank i.e Store into memory
+		
+		void GenerateScr(int );
+		void SetCtrlLineDesc(int, int, char *); 
+		void ResetOSR(CREP40 &);
+		void ResetCAT401();
+		void ResetCAT402();		
+
+		bool fnCAT401(StructTTUB & ObjTT);  //dd for CAT401
+
+		void AddControl();		 
+
+
+		// parser function
+		PC * ptrPC;																// 	pointer to PC set by F110
+		vector<PC> vecParserFormat;								// 	pool storage of format
+		//short unsigned int iErrCode;							//  error code 
+		ErrCdList iErrCode;	
+		stringstream strErrDesc;									// 	if err code is set then fetch desc from here
+
+		// Output tank
+		StructTTUB * ptrTT; 											//	output normalised format pointer
+		FileInfo * ptrMstFileInfo;											// 	master file info ...pointer																							
+
+		void SetTableRef();
+		int ConvParserFormat(ParserCode,char *);	// 	parse format into internal struct
+		void setData(const int,char *,int);				// 	fields mapped to struct 
+		void SetFileControl(const unsigned int ,const unsigned long ,const double,const double );
+
+		CREP40 ObjCrep40Ctrl;
+		vector<CREP40> vecCrep;				// hold all the crep40 controls
+		vector<CAT401> vecCat401Ctrl;
+		vector<CAT401> vecCat402Ctrl;
+		vector<SCRStruct> vecGlobeSCR40;
+
+		public: //Methods
+		BaseParser();
+		virtual ~BaseParser();
+
+		//Inits all the parsing parameters
+		bool Init();
+		bool Process(ArrBufferData objData)	;
+		//bool ProcessSwitch(ArrBufferData objData)	;
+		//bool ProcessNetwork(ArrBufferData objData)	;
+		//bool ProcessBin(ArrBufferData objData)	;
+		bool EOJ();
+
+		void printCAT140();
+		// new 6MAR18
+		void GetFileLvlDetail(const char *,const char *,void*);
+		FileFmtTyp GetFmtType(FileCodeList );
+		FileCodeList GetFilecd(const char * ,const char * );
+		FileInfo GetFileCtrl();
+		
+		char acDUPLKey[40+1];
+};
+
+std::ostream& operator<<(std::ostream& out, const ErrCdList);
+
+#endif /* BASEPARSER_H_ */

@@ -1,0 +1,20 @@
+#include "TankMapper.h"
+
+TankMapper::TankMapper()
+{
+
+}
+
+TankMapper::~TankMapper()
+{
+
+
+}
+
+void TankMapper::Process(Model & objModel)
+{
+	// STEP1:DATA ENRICHMENT
+	EnrichData(objModel);
+	// STEP2: STORE INTO MEMORY
+	StoreRecordIntoMem(objModel);
+}

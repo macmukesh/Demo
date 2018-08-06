@@ -1,0 +1,79 @@
+#include <iostream>
+using namespace std;
+
+typedef struct
+{
+	char COL1[19];
+	double COL2;
+	int COL3;			
+	char COL4;
+	char COL5[6];
+
+	public:
+	enum StrCol
+	{
+			CARDNO,
+			AUTHCD,
+	};
+	enum FloatCol
+	{
+			TXNAMOUNT,
+	};
+	enum IntCol
+	{
+			BATCHNO
+	};
+	enum CharCol
+	{
+			CODE5
+	};
+
+
+	char * GetData(StrCol Obj)
+	{
+		switch(Obj)
+		{
+			case CARDNO:
+									return COL1;
+			case AUTHCD:
+									return COL5;
+		}
+	}
+
+	int GetData(IntCol Obj)
+	{
+		switch(Obj)
+		{
+			case BATCHNO:
+										return COL3;
+		}
+	}
+
+	double GetData(FloatCol Obj)
+	{
+		switch(Obj)
+		{
+			case TXNAMOUNT:
+											return COL2;
+		}
+	}
+
+	char GetData(CharCol Obj)
+	{
+		switch(Obj)
+		{
+			case CODE5:
+										return COL4;
+		}
+	}
+
+}CardData;
+
+int main()
+{
+	CardData ObjCard;
+	char * Am1t;
+	int Amt=ObjCard.GetData(CardData::TXNAMOUNT);
+
+	cout<<"ELEMNO:"<<Amt<<endl;
+}

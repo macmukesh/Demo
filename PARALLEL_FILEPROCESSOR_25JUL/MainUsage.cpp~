@@ -1,0 +1,69 @@
+#include "DataParser.h"
+
+FC GetFC(int ielemno)
+{
+	FC objfc;
+	switch(ielemno)
+	{
+		case 1:
+						objfc.iStart=0;
+						objfc.iNoOfBytes=5;
+						objfc.iFieldVal='Z';
+						objfc.iOutColId=0;
+						break;
+		case 2:
+						objfc.iStart=6;
+						objfc.iNoOfBytes=2;
+						objfc.iFieldVal='Z';
+						objfc.iOutColId=0;
+						break;
+		case 3:
+						objfc.iStart=9;
+						objfc.iNoOfBytes=2;
+						objfc.iFieldVal='Z';
+						objfc.iOutColId=1;
+						break;
+	}
+	return objfc;
+}
+
+typedef struct
+{
+	char acRawdata[5120];							// rawdata length
+  	unsigned short iFilecd;							// file code
+	unsigned short iRowSz;							// size of row	
+	unsigned short iFileno;							// out fileno
+	unsigned long lTankSeq;							// out tank seqno
+	unsigned int iParserCd;							// parser cd	
+	StructTTUB ObjTT;										// out struct
+}ArrBufferData;	//total size=5136
+
+int main()
+{
+	cout<<"Sizeof Array:"<<sizeof(ArrBufferData)<<endl;
+
+	DataParser ObjParser;
+
+	// create PC
+	PC ObjPC;
+	ObjPC.iNoOfFields=0;
+	ObjPC.iParserCd=1;
+
+	for(int ix=1;ix<=3;++ix)
+	{
+		ObjPC.arrFC[ix-1]=GetFC(ix);
+		++ObjPC.iNoOfFields;
+	}
+
+	ObjParser.RegisterFormat(ObjPC);
+
+	char acdata[100];
+	memset(acdata,0x00,sizeof(acdata));
+	strcpy(acdata,"MYNAMEISMUKESH");
+
+	Model objCommData;
+	ObjParser.ParseDataIntoStruct(acdata,strlen(acdata),1,objCommData);
+	// commdata to final structure..
+
+	return 0;
+}

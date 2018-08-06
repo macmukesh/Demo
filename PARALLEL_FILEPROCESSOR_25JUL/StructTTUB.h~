@@ -1,0 +1,839 @@
+/*******************************************************************/
+/*
+   COPYRIGHT NOTICE
+   Copyright @ 2013 In-Solutions Global Pvt Ltd (ISG). All rights reserved.
+
+   These materials are confidential and proprietary to In-Solutions Global Pvt Ltd (ISG) and no part of these materials should be reproduced, published, transmitted or distributed in any form or by any means, electronic, mechanical, photocopying, recording or otherwise, or stored in any information storage or retrieval system of any nature nor should the materials be disclosed to third parties or used in any other manner for which this is not authorized, without the prior express written authorization of In-Solutions Global Pvt Ltd (ISG) Pvt Ltd. */
+/*                                                                 */
+/*******************************************************************/
+/**********************************************************************
+ * Module Name         :
+ * File Name           :  StructTTUB.h
+ * Description         :  
+ *
+ *            Version Control Block
+ *            ---------------------
+ * Date             Version     Author               Description
+ * ---------       --------  ---------------  ---------------------------
+  3 Mar 15           1.0      EKTA DHANDE             Base Version
+  8 May 15           1.1      Sneha Patil             Modified
+  21 May 15          1.2      Sneha Patil             Modified
+  27 May 15          1.3      Sneha Patil             Modified
+  07 Oct 15          1.4      Sneha Patil             Modified 
+  26 Oct 15          1.5      Sneha Patil             Modified
+  24 Dec 15          1.6      Sneha Patil             Modified
+*******************************************************************/
+#ifndef _TTUB_H_
+#define _TTUB_H_
+
+typedef struct
+{
+	char    acFormatType[4+1];	//T100
+	char	acFileIdentityNum[2+1];	//T101
+	char	cDC;			//T102 ( acDataCapNum )
+	char	acDS[3+1];		//T103 ( acLifeCycleCode )
+	char	cTxnSign;		//T104 ( cLabelDataCap )
+
+	char    acProcDate[6+1];	//T105	run date / recap date
+	char	acFileNumber[3+1];	//T106
+	char	acMEId[15+1];		//T107
+	char	cSequencer2;		//T108
+
+	char	acBatchDate[6+1];	//T109
+	char	acTID[8+1];			//T110
+	char	acBatchNo[5+1];		//T111
+	char	acBinCode[6+1];		//T112
+	char	acBinGroup[3+1];	//T113
+	char	cCardProgram;		//T114	(P/C)
+	char	cCardKind;		//T115	(D/C)
+	char	cNetwork;		//T116 (V/M/R/D)
+	char	cIssuerStatus;		//T117 (L/F/P)
+	char	cOnOffus;		//T118	(O/X)
+
+	char	acTransDate[6+1];	//T121
+	char	acCardNo[19+1];		//T122
+	char	acAuthCode[6+1];	//T123	acUniq
+	char	acMccCode[4+1];		//T124	acMCCCode
+	char	acMccGroup[3+1];	//T125	acMCCGROUP
+	char	cSequencer0;		//T126 	?? cSequencer1
+	char	acSequencer3[7+1];	//T127 
+	char	ac3STAYSKEY[16+1];	//T128
+	char	acIATAInvoiceNo[15+1];	//T129
+	char	acIATABSP[3+1];		//T130
+
+	char	cCODE2;			//T132
+	char	acCODE3[3+1];		//T133
+	char	acCODE4[2+1];		//T134
+	char	cCODE5;			//T135
+
+	char	acErrorCode[9+1];	//T136	for RSHOP (J,K,L,P,Q,R,S,T,X)
+
+	// FOUR FIELDS ADDED DOWN
+	char	acSrlSeqNo1[12+1];	// T149	(old.. T138) acSeqNo1PTLF
+	char	acSrlSeqNo2[12+1];	// T150	(old.. T139) acSeqNo2PTLF
+	char	cTrivialError;		// T151	(old.. T137)
+
+	char	acOrigProcDate[6+1];	// T152	T142
+	char	acOrigDataCap[3+1];	// T153	T143
+	char	acOrigFileNo[2+1];	// T154	T144
+	char	acOrigBatchDate[6+1];	// T155	T145
+	char	acOrigBatchNo[5+1];	// T156	T146
+	char	acOrigSeqNo1[12+1];	// T157	T147
+	char	acOrigSeqNo2[12+1];	// T158	T148
+	char	acOrigTid[8+1];		// T159	T149
+
+	char	cDupDC;			//T162
+	char	acDupDS[3+1];		//T163
+	char	cDupTxnSign;		//T164
+
+	char	cProductCode;		// T155 added by Amita
+	char	acSubProduct[2+1];	// T156	added by Amita
+	char	cBSA;			// T157	added by Amita
+
+	char	cMajCy;			//T180 added by Shivendra on 11 JAN 16
+	char	cEMCode;		//T181
+	float	fAdfiRate;		//T182
+	char	acBank2[2+1];		//T183
+	char	cSmsDms;		//T184 S=SMS / D=DMS (Based on BIN Code in T112)
+
+	char	acOGFileNo[3+1];	//T185	size 8 to 3
+	char	acRecapNo[3+1];		//T186 (Only for Diners) size 8 to 3
+	char	acOGBatchNo[3+1];	//T187 size 8 to 3
+
+	char	cDSFEXP;		//T188 DMS TXN	24/12/15
+	char	cSSFEXP;		//T189 SMS TXN	24/12/15
+
+	char	acRSNGlobal[8+1];	//T190	RSNGB
+	char	acRSNFile[8+1];		//T191	RSNFL
+	char	acRSNBatch[3+1];	//T192	RSNBT	
+	char	acRSNUNIQ[8+1];		//T193	RSNUNIQ
+
+	char	acRrn[12+1];		//T194	T171	
+	char 	acArn[23+1];		//T195	T172	
+	char 	acUrn[21+1];		//T196	T173	
+
+	char 	acTSK[28+1];		//T197 	Length updated on 11-MAy-16 by Shivendra
+	
+
+	char	cSurRcp;		//T231
+	float 	fSurFixAmt;		//T232
+	float 	fSurPerAmt;		//T233
+
+	char	cSurCashAdvRecipe;	//T234
+	float 	fSurCashAdvFixAmt;	//T235
+	float 	fSurCashAdvPercent;	//T236
+
+	char	cWorkingDays;		//T237
+	char	cGracePeriod;		//T238
+	float 	fPenDefault;		//T239
+	float 	fPenDelay;			//T240
+	float 	fTotalPenPercent;	//T241
+
+	char	cMeshareRCPComm;	//T242
+	float 	fMeShareFixCm;		//T243
+	float 	fMeSharePcCm;		//T244
+
+	char	cMeshareRCPSur;		//T245
+	float	fMeShareFixSur;		//T246
+	float	fMeSharePcSur;		//T247
+
+	char	cMeshareRCPSCA;		//T248
+	float	fMeShareFixSca;		//T249
+	float	fMeSharePcSca;		//T250
+
+	char	cPeshareRCPSur;		//T251
+	float 	fPeShareFixSur;		//T252
+	float 	fPeSharePcSur;		//T253
+
+	char	cPeshareRCPSCA;		//T254
+	float 	fPeShareFixSca;		//T255
+	float 	fPeSharePcSca;		//T256
+
+	char	acPETCOCode[6+1];	//T257
+	float 	fMeSetCccDcc;		//T258
+
+	// DTR FIELDS
+	double	dRawAmount1;		//T271
+	float	dRawAmount2;		//T272
+	double	dDCCLocalAmt;		//T273
+
+	float	fBaselineCommPrcnt;	//T280
+	float	fCommADONPrcnt;		//T281
+	float	fCommTotalPrcnt;	//T282
+
+	char	cCDCode;		//T285
+	char	acCHCurrCode[3+1]; 	//T286
+	char	acMepayCurrCode[3+1]; 	//T287
+	float	fCHCYInr;		//T288
+	float	fMECYInr;		//T289
+
+	double	dCHCYMainCharge;	//T293
+	float	dCHCYTips;		//T294
+	float	dCHCYAdj;		//T295
+	float 	dCHCYCashAdvnc;		//T296
+	double	dCHCYGrossAmt;		//T297
+
+	double	dINRMainCharge;		//T303
+	float	dINRTips;		//T304
+	float	dINRAdj;		//T305
+	float	dINRCashAdv;		//T306
+	double	dINRGrossAmt;		//T307
+
+	float	dINRGrossAmtNW;		//T311
+	float	dINRSurNW;		//T312
+	float	dINRScaNW;		//T313
+	float	dINRServTaxNW;		//T314
+	float	dINRNwr;		//T320
+	float	dRecSMSInr;		//T321
+	float	dRecDMSInr;		//T322
+
+	char	acCHCYCurrCode[3+1];	//T323
+	float	dRecAmtOGUpload;	//T324
+	float	dRecSMS324;		//T325
+	float	dRecDMSOGUpload;	//T326
+
+	double	dGrossAmt;		//T331
+	double	dComm;			//T332
+	double	dPenalty;		//T333	
+	double	dServTax;		//T334	// T334=stx*(T332+T333)
+	float	dMeShareComm;		//T335		
+	float	dMeShareSurcharge;	//T336
+	float	dMeShareSCA;		//T337 Surcharge Cash Advance
+	float	dPosRent;		//T338 PosRent RECEIVABLE +VE, PAYABLE IF -VE. 10
+	float	dRentAdvAdj;		//T339 RentAdv Adjustment RECEIVABLE +VE, PAYBACK -VE. 10
+
+	float  dAdhocPayMe;		//T342 new
+	float  dAdhocRecMe;		//T343 new
+	float  dServTaxOnAdhocRec;	//T344 new
+
+	//float	dPaymentME4;		//REMOVE AFTER CHANGING IN DB
+	//float	dPaymentME5;		//REMOVE AFTER CHANGING IN DB
+
+	double	dMePayable;		//T350
+
+	double	dMePayableInINR;	//T363
+	double	dMePayableInMECY;	//T364
+	double	dMePayableToMECY;	//T365
+
+	float	dPetCoSurAmt;		//T370
+	float	dPetCoSChrgCashAdvAmt;	//T371
+	float	dPetcoPayable;		//T372
+
+	double	dBaselineComm;		// T380
+	float	dFeeRate;		// T381
+
+	/* -------------------------------------------------------------- */
+	float	fFixedFeeAmount;	// T382
+	char	cFeePlanInd;		// T383
+
+	char	acSTCurrCode[3+1];	// T390
+	float	fStcyInrConvRate;	// T391
+
+	float	dSTSmsPortionInChcy;	// T395
+	float	dSTDmsPortionInChcy;	// T396
+	float	dSTRecSmsPortionInStcy;	// T397
+	float	dSTRecDmsPortionInStcy;	// T398
+
+	char	cSmsPortionFlg;		// T399
+	char	cDmsPortionFlg;		// T400
+
+	float	dDmsForecastFees;	// T401
+	float	dDmsProratedFees;	// T402
+	float	dVisaDmsFeesDiff;	// T403
+	float	dDmsActualFees;		// T404
+	float	dSmsActualFees;		// T405
+	/* -------------------------------------------------------------- */
+
+	// OG FIELDS
+	char	acRRN[12+1];		//T601
+	float   dDcclocalAmt1;		//T602
+	char 	acServcd[3+1];	//T603
+	char    acTxnlcId[15+1];		//T604	visa
+	char	acAction[3+1]; 	//T605
+	char 	acNwRegionIssuer[2+1];	//T606
+	char 	acNwRegionAcquirer[2+1];  //T607
+	char 	acMeName[50+1];	//T608
+	char	cAcctermin;		//T609
+	char 	acAcqId[11+1];	//T610
+	char 	acTxnorgid[11+1];	//T611
+	char	acCrdcnty[3+1];	//T612 (UPDATE THIS WITH BINARY SEARCH ON BIN75)
+	char 	acARN[23+1];		//T613
+	char 	acIntchgratedesg[29+1];	//T614
+
+	char 	acChrgbkreason[2+1];	//T617
+	char 	acNumofchrgbk[3+1];	//T618
+	char 	acPanEntryMode[3+1];	//T619
+	char 	acPoicurrcode[3+1];	//T620
+	char 	acPoicurrexp[2+1];	//T621
+	char 	acC0cvdfld[4+1];	//T622
+	char 	acMerchverival[12+1];	//T623
+	char	cTmUtilflg;		//T624
+	char 	acPosDataCode[10+1];	//T625
+	char	cPurchaseIdFormat;	//T626
+	char 	acPurchaseId[25+1];	//T627
+	char 	acAuthCurrCode[3+1];	//T628
+	char 	acB5IssathdtRespCde[4+1]; //T629
+	char	cAuthChrctsInd;	//T630
+
+	char	cTermCapabilityInd;	//T631
+	char 	acFeeProgInd[3+1];	//T632
+	char	cSrvcDevField;	//T633
+	char	cAvsRespCode;	//T634
+	char	cAccntSelctn;	//T635
+	char	cPosEnv;		//T636
+	char 	acMltplClrngSeqNum[2+1];  //T637
+	char 	acMltplClrngSeqCnt[2+1];  //T638
+	char 	acRespCode[2+1];	//T639
+	char	cAuthDataInd;	//T640
+	char 	acEcommGoodsInd[2+1];	//T641
+	char 	acProductId[2+1];	//T642
+	char 	acProgramId[6+1];	//T643
+	char	cCvv2ResultCode;	//T644
+	char	cB4TermEntryCap;	//T645
+	char 	acB2TranType[2+1];	//T646
+	char 	acB2TranDate[6+1];	//T647
+	char 	acB3EmvTermCap[8+1];	//T648
+	char	acB2TranEntryCde[3+1];	//T649
+	char 	acB3TermSrlNum[8+1];	//T650
+
+	char 	acB2UnpredictNum[8+1];	//T651
+	char 	acB2Atc[4+1];		//T652
+	char 	acB2A1p[4+1];		//T653
+	char 	acB2Arqc[16+1];		//T654
+	char 	acB2IssAppData[70+1];	//T655	b2arqc	//d
+	char 	acB2Tvr[10+1];		//T656
+	float	dB2AmtAuth;		//T657
+	char 	acB6IssScrData[80+1];	//T658	
+	char 	acB2CryptoInfoData[2+1];//T659
+	char 	acB2TermCrncyCde[3+1];	//T660
+	float	dB2AmtOther;		//T661
+	char 	acB3CvmRslts[6+1];	//T662
+	char 	acB3EmvTermType[2+1];	//T663
+	char 	acB3Name[32+1];		//T664
+	char 	acB3ApplVerNum[4+1];	//T665
+	char 	acB5IssathdtAddData[16+1];//T666
+
+	char	acVisaId[11+1];		// T667	added by Abhijeet
+	char	acRupaySetBin[6+1];	// T668	added by Abhijeet
+	char	acDinersICA[11+1];	// T669 added by Abhijeet
+
+	char	acTransactionCode[2+1];	//T701
+
+	char	acMECity[13+1];		//T710
+	char	acMECountry[3+1];	//T711
+	char	acMEZip[10+1];		//T712
+	char	acMEState[3+1];		//T713
+
+	char	cPosTerminalCapability;	//T719
+	char	acCardholderIDMethod[3+1];//T721
+	char	cCollectionOnlyFlag;	//T722		//1---30
+	char	acPOSEntryMode[2+1];	//T723
+	char	cReimbursementAttribute;//T725
+	char	acFeeProgramIndicator[3+1];//T734
+	char	cMOTOIND;		//T738
+	float	dCashBackAmt;		//T744
+	char	cPOSEnvironment;	//T746
+	char	acProcessingCode[6+1];	//T784
+	char	acPOSDataCode[12+1];	//T785
+	char	acFuncCode[4+1];	//T786
+	char	acTermType[3+1];	//T788
+	char	acECommSecLevInd[3+1];	//T789
+	short	sCurrExp;		//T790
+
+	char	acTermCompInd[2+1];	//T791		
+	float	dAmtAdd;		//T792
+	char	acTranLCycleID[16+1];	//T794	 master/dci
+	char	acMsgNum[8+1];		//T795
+	char	acDateType[2+1];	//T797
+	char	acChargeType[3+1];	//T798
+	char	acMEAddress[35+1];	//T802
+	char	cCrdHolderPresInd;	//T807
+	char	cCrdPresentInd;		//T808
+	char	cCrdInpDataMethod;	//T809
+	char	cCrdDataInpCapInd;	//T811
+
+// Added by Shivendra on 11-Sep-2015
+	char	acChgDtTime[14+1];	// T670 = tran Date T121(6) + tran Time T670(8)
+	char	cEcomFlag; 		// T681
+	char	acLniSsr[4+1];		// T682
+
+// Added by Shivendra on 10-FEB-2016
+	char 	acPosCondCd[10+1];	//T671 added by sneha
+	char	acPassengerName[50+1];	// T672
+	char	acDepartDate[6+1];	// T673
+	char	acPassengerTckNum[15+1]; // T674
+	char	acTravelAgencyCode[8+1]; // T675
+	char	acPOSAgentName[25+1];	// T676
+	char	acIssueDate[6+1];	// T677
+
+	char	acFaRetailerId[11+1];	// T685
+	char 	acFaISO[11+1];		// T686
+	char	acFaMeid[15+1];		// T687
+	short	sAgingDays;		// T683
+	
+	char	acIndependentSaleOrgId[11+1];	// T688	by Meraj
+	char	acSubMerchantId[15+1];		// T689	by Meraj
+	char	acPaymentFacilitorname[12+1];	// T690	by Meraj
+	char	acSubMEName[22+1];		// T691	by Meraj
+	char	acSubMEStreetAdrr[25+1];	// T692	by Meraj
+	char	acSubMECity[13+1];		// T693	by Meraj
+	char	acSubMEState[3+1];		// T694	by Meraj
+	char	acSubMECountryCode[3+1];	// T695	by Meraj
+	char	acSubMEPosCountryCode[3+1];	// T696	by Meraj
+	char	acSUbMEPosPostalCode[3+1];	// T697	by Meraj
+	char	acSubMEMCC[4+1];		// T698	by Meraj
+
+	char 	cOriginator1;			// T699 Added by Ekta for NumOfChrgbk
+
+	char	acTranId[15+1];			// T901
+	char	acTraceId[16+1];		// T902
+
+	char 	acVFGK[45+1];		// T198 Added by Shivendra on 13-APR-16
+	char	acOGUploadDt[6+1];	// T170 Added by Shivendra on 13-APR-16
+
+	char	cHoldTagDms;		// T137 Added by Shivendra on 11-MAY-16
+	short	sRotationNumDms;	// T138 Added by Shivendra on 11-MAY-16
+	char	cHoldTagSms;		// T139 Added by Shivendra on 11-MAY-16
+	short	sRotationNumSms;	// T140 Added by Shivendra on 11-MAY-16
+
+	char	acTxnStepFlg[2+1];		// T119 (WILL BE UPDATED IN P11 as ECOM FLAG)
+
+	char	acRootDS[3+1];			//T165 ( acLifeCycleCode )
+	char	acRootProcDate[6+1];		//T166
+
+	// cb/cbr policy setup flg
+	short	sTT211;
+	short	sTT212;
+	short	sTT213;
+	short	sTT214;
+	short	sTT215;
+	short	sTT216;
+	short	sTT217;
+
+	char	acMeDueDate[6+1];		//T120
+	char	cDupSeq2;
+
+	char 	acBsaCode[6+1];		//added by Divya 
+	char 	acMti[4+1];		//added by Divya
+	char	cCabType;		//added by Shivendra
+	char	acProductClass[3+1];	//added by Shivendra
+
+//Fileds added by Sneha on 13Jan2016
+
+	double	dCHCYTotalGrossAmt;		//T297
+	double	dCHCYComm;		
+	double	dCHCYPenalty;		
+	double	dCHCYServTax;		
+	float	dCHCYPosRent;		
+	float	dCHCYRentAdvAdj;	
+
+	double dMECYGrossAmt;		
+	double	dMECYComm;		
+	double	dMECYPenalty;		
+	double	dMECYServTax;		
+	float	dMECYPosRent;		
+	float	dMECYRentAdvAdj;	
+
+	float	dMECYMainCharge;	
+	float	dMECYTips;		
+	float	dMECYAdj;		
+	float 	dMECYCashAdvnc;		
+
+	int 	iDefferedDays;
+	char	acFiller3[3+1];
+	char	acGrpDesc[100+1];
+
+	char	cBatchStatus;			// P14 Batch Status
+	char	cRateType;			// 'R' :variable Rate , 'F' : Flat amt, B: Addition of both
+	long	lUniqId;			// serial no
+
+	char	acSettleDt[6+1];
+
+	int 	iSeqBatchNo;
+	char	acSchemeCode[3+1];	
+	
+	//added by sneha 0m 150617 fro MONTHLY ME Changes
+	
+	float	dCommReplica;			//T332
+	float	dPenaltyReplica;		//T333	
+	float	dServTaxReplica;		//T334
+	float	dPosRentReplica;		//T338 PosRent RECEIVABLE +VE, PAYABLE IF -VE. 10
+	float	dRentAdvAdjReplica;		//T339 RentAdv Adjustment RECEIVABLE +VE, PAYBACK -VE. 10	
+	float 	dAdhocRecMeReplica;
+	float   dServTaxOnAdhocRecReplica;
+	
+	char	cSeqSub;
+	char	acExtraKey[50+1];
+	
+	char cPayHldFlg;
+	int iRotationNo;
+
+	double dMECYAdhocRecMe;
+	double dMECYAdhocPayMe;	
+
+	char cQR;
+	char cVIP;
+	char acProckey[100]; //14may18
+
+enum TTCOL
+{
+	FORMATTYPE,
+	FILEIDENTITYNO,
+	DC,
+	DSEC,
+	TXNSIGN,
+	PROCDT,
+	FILENO,
+	MEID,
+	SEQ2,
+	BATCHDT,
+	TID,
+	BATCHNO,
+	BINCODE,
+	BINGROUP,
+	CARDPROGRAM,
+	CARDKIND,
+	NETWORK,
+	ISSUERSTATUS,
+	ONOFFUS,
+	TRANSDT,
+	CARDNO,
+	AUTHCODE,
+	MCCCODE,
+	MCCGROUP,
+	SEQ0,
+	SEQ3,
+	STAYSKEY,
+	IATAINVOICENO,
+	IATABSP,
+	CODE2,
+	CODE3,
+	CODE4,
+	CODE5,
+	ERRORCODE,
+	SRLSEQNO1,
+	SRLSEQNO2,
+	TRIVIALERROR,
+	ORIGPROCDT,
+	ORIGDATAP,
+	ORIGFILENO,
+	ORIGBATCHDT,
+	ORIGBATCHNO,
+	ORIGSEQNO1,
+	ORIGSEQNO2,
+	ORIGTID,
+	DUPDC,
+	DUPDS,
+	DUPTXNSIGN,
+	PRODUCTCODE,
+	SUBPRODUCT,
+	BSA,
+	MAJCY,
+	EMCODE,
+	ADFIRATE,
+	BANK2,
+	SMSDMS,
+	OGFILENO,
+	RECAPNO,
+	OGBATCHNO,
+	DSFEXP,
+	SSFEXP,
+	RSNGLOBAL,
+	RSNFILE,
+	RSNBATCH,
+	RSNUNIQ,
+	RRN1,
+	ARN1,
+	URN1,
+	TSK8,
+	SURRCP,
+	SURFIXAMT,
+	SURPERAMT,
+	SURCASHADVRECIPE,
+	SURCASHADVFIXAMT,
+	SURCASHADVPERCENT,
+	WORKINGDAYS,
+	GRACEPERIOD,
+	PENDEFAULT,
+	PENDELAY,
+	TOTALPENPERCENT,
+	MESHARERCPCOMM,
+	MESHAREFIXCM,
+	MESHAREPCCM,
+	MESHARERCPSUR,
+	MESHAREFIXSUR,
+	MESHAREPCSUR,
+	MESHARERCPSCA,
+	MESHAREFIXSCA,
+	MESHAREPCSCA,
+	PESHARERCPSUR,
+	PESHAREFIXSUR,
+	PESHAREPCSUR,
+	PESHARERCPSCA,
+	PESHAREFIXSCA,
+	PESHAREPCSCA,
+	PETCOCODE,
+	MESETCCCDCC,
+	RAWAMOUNT1,
+	RAWAMOUNT2,
+	DCCLOCALAMT,
+	BASELINECOMMPRCNT,
+	COMMADONPRCNT,
+	COMMTOTALPRCNT,
+	CODE,
+	HCURRCODE, 
+	MEPAYCURRCODE, 
+	CHCYINR,
+	MECYINR,
+	CHCYMAINCHARGE,
+	CHCYTIPS,
+	CHCYADJ,
+	CHCYCASHADVNC,
+	CHCYGROSSAMT,
+	INRMAINCHARGE,
+	INRTIPS,
+	INRADJ,
+	INRCASHADV,
+	INRGROSSAMT,
+	INRGROSSAMTNW,
+	INRSURNW,
+	INRSCANW,
+	INRSERVTAXNW,
+	INRNWR,
+	RECSMSINR,
+	RECDMSINR,
+	HCYCURRCODE,
+	RECAMTOGUPLOAD,
+	RECSMS324,
+	RECDMSOGUPLOAD,
+	GROSSAMT,
+	COMM,
+	PENALTY,
+	SERVTAX,
+	MESHARECOMM,
+	MESHARESURCHARGE,
+	MESHARESCA,
+	POSRENT,
+	RENTADVADJ,
+	ADHOCPAYME,
+	ADHOCRECME,
+	SERVTAXONADHOCREC,
+	MEPAYABLE,
+	MEPAYABLEININR,
+	MEPAYABLEINMECY,
+	MEPAYABLETOMECY,
+	PETCOSURAMT,
+	PETCOSCHRGCASHADVAMT,
+	PETCOPAYABLE,
+	BASELINECOMM,
+	FEERATE,
+	FIXEDFEEAMOUNT,
+	FEEPLANIND,
+	STCURRCODE,
+	STCYINRCONVRATE,
+	STSMSPORTIONINCHCY,
+	STDMSPORTIONINCHCY,
+	STRECSMSPORTIONINSTCY,
+	STRECDMSPORTIONINSTCY,
+	SMSPORTIONFLG,
+	MSPORTIONFLG,
+	DMSFORECASTFEES,
+	DMSPRORATEDFEES,
+	VISADMSFEESDIFF,
+	DMSACTUALFEES,
+	SMSACTUALFEES,
+	RRN,
+	DCCLOCALAMT1,
+	SERVCD,
+	TXNLCID,
+	ACTION, 
+	NWREGIONISSUER,
+	NWREGIONACQUIRER,  
+	MENAME0,
+	ACCTERMIN,
+	ACQID,
+	TXNORGID,
+	RDCNTY,
+	ARN,
+	INTCHGRATEDESG,
+	HRGBKREASON,
+	NOOFCHRGBK,
+	PANENTRYMODE,
+	POICURRCODE,
+	POICURREXP,
+	CVDFLD,
+	MERCHVERIVAL,
+	TMUTILFLG,
+	POSDATACODE,
+	PURCHASEIDFORMAT,
+	PURCHASEID5,
+	AUTHCURRCODE,
+	B5ISSATHDTRESPCDE, 
+	AUTHCHRCTSIND,
+	TERMCAPABILITYIND,
+	FEEPROGIND,
+	SRVCDEVFIELD,
+	AVSRESPCODE,
+	ACCNTSELCTN,
+	POSENV,
+	MLTPLCLRNGSEQNO,  
+	MLTPLCLRNGSEQCNT,  
+	RESPCODE,
+	AUTHDATAIND,
+	ECOMMGOODSIND,
+	PRODUCTID,
+	PROGRAMID,
+	CVV2RESULTCODE,
+	B4TERMENTRYCAP,
+	B2TRANTYPE,
+	B2TRANDT,
+	B3EMVTERMCAP,
+	B2TRANENTRYCDE,
+	B3TERMSRLNO,
+	B2UNPREDICTNO,
+	B2ATC,
+	B2A1P,
+	B2ARQC,
+	B2ISSAPPDATA0,
+	B2TVR,
+	B2AMTAUTH,
+	B6ISSSCRDATA0,
+	B2CRYPTOINFODATA,
+	B2TERMCRNCYCDE,
+	B2AMTOTHER,
+	B3CVMRSLTS,
+	B3EMVTERMTYPE,
+	B3NAME2,
+	B3APPLVERNO,
+	B5ISSATHDTADDDATA,
+	VISAID,
+	RUPAYSETBIN,
+	INERSICA,
+	TRANSACTIONCODE,
+	MECITY,
+	MECOUNTRY,
+	MEZIP,
+	MESTATE,
+	POSTERMINALCAPABILITY,
+	ARDHOLDERIDMETHOD,
+	COLLECTIONONLYFLAG,
+	POSENTRYMODE,
+	REIMBURSEMENTATTRIBUTE,
+	FEEPROGRAMINDICATOR,
+	MOTOIND,
+	CASHBACKAMT,
+	POSENVIRONMENT,
+	PROCESSINGCODE,
+	POSDATACODE1,
+	UNCCODE,
+	TERMTYPE,
+	ECOMMSECLEVIND,
+	SCURREXP,
+	TERMCOMPIND,
+	AMTADD,
+	TRANLCYCLEID,
+	MSGNO,
+	DATETYPE,
+	HARGETYPE,
+	MEADDRESS5,
+	CRDHOLDERPRESIND,
+	CRDPRESENTIND,
+	CRDINPDATAMETHOD,
+	CRDDATAINPCAPIND,
+	HGDTTIME,
+	ECOMFLAG, 
+	LNISSR,
+	POSCONDCD,
+	PASSENGERNAME0,
+	DEPARTDT,
+	PASSENGERTCKNO, 
+	TRAVELAGENCYCODE, 
+	POSAGENTNAME5,
+	ISSUEDT,
+	FARETAILERID,
+	FAISO,
+	FAMEID,
+	SAGINGDAYS,
+	INDEPENDENTSALEORGID,
+	SUBMERCHANTID,
+	PAYMENTFACILITORNAME,
+	SUBMENAME2,
+	SUBMESTREETADRR5,
+	SUBMECITY,
+	SUBMESTATE,
+	SUBMECOUNTRYCODE,
+	SUBMEPOSCOUNTRYCODE,
+	SUBMEPOSPOSTALCODE,
+	SUBMEMCC,
+	ORIGINATOR1,
+	TRANID,
+	TRACEID,
+	VFGK5,
+	OGUPLOADDT,
+	HOLDTAGDMS,
+	SROTATIONNODMS,
+	HOLDTAGSMS,
+	SROTATIONNOSMS,
+	TXNSTEPFLG,
+	ROOTDS,
+	ROOTPROCDT,
+	STT211,
+	STT212,
+	STT213,
+	STT214,
+	STT215,
+	STT216,
+	STT217,
+	MEDUEDT,
+	DUPSEQ2,
+	BSACODE,
+	MTI,
+	CABTYPE,
+	PRODUCTCLASS,
+	CHCYTOTALGROSSAMT,
+	CHCYCOMM,
+	CHCYPENALTY,
+	CHCYSERVTAX,
+	CHCYPOSRENT,
+	CHCYRENTADVADJ,
+	MECYCOMM,
+	MECYPENALTY,
+	MECYSERVTAX,
+	MECYPOSRENT,
+	MECYRENTADVADJ,
+	MECYMAINCHARGE,
+	MECYTIPS,
+	MECYADJ,
+	MECYCASHADVNC,
+	IDEFFEREDDAYS,
+	ACFILLER3,
+	GRPDESC0,
+	BATCHSTATUS,
+	RATETYPE,
+	LUNIQID,
+	SETTLEDT,
+	ISEQBATCHNO,
+	SCHEMECODE,
+	COMMREPLICA,
+	PENALTYREPLICA,
+	SERVTAXREPLICA,
+	POSRENTREPLICA,
+	RENTADVADJREPLICA,
+	ADHOCRECMEREPLICA,
+	SERVTAXONADHOCRECREPLICA,
+	SEQSUB,
+	ACEXTRAKEY0,
+	PAYHLDFLG,
+	IROTATIONNO,
+	MECYADHOCRECME,
+	MECYADHOCPAYME,
+	QR,
+	VIP,
+	PROCKEY, 
+	SUBCARDPRGM,
+};
+
+
+}StructTTUB;
+
+#endif

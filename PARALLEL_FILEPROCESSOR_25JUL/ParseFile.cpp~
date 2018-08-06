@@ -1,0 +1,1683 @@
+#include "ParseFile.h"
+
+ParseFile::ParseFile(BaseParser * ptr)
+{
+	ptrParser=ptr;
+	iTcrCnt=0;
+	
+	//added on 12jun18
+	pStart = 1;
+	//
+	
+	// reset		
+	for(int iX=0;iX<iMAXNOOFQ;++iX){
+	lRawSeqNo[iX].lLastPos=0;
+	lRawSeqNo[iX].lCurrPos=0;
+	}
+
+	// fill this last seqno from tank 
+
+}
+
+
+ParseFile::~ParseFile()
+{
+	if(ofsProgWrite.is_open())
+	ofsProgWrite.close();
+	
+	if(ptrParser != NULL){// TODO : ADded for testing (Memory release)
+	delete ptrParser;
+	}
+}
+
+bool ParseFile::Init()
+{
+		//TODO (Added for testing)call to initialize paring parameters
+		if(!ptrParser->Init()){
+			cout<<"void ParseFile::Init() failed"<<endl;
+			return false;
+		}
+
+		// reset all 3 output
+		ResetFileInfo(ObjFileInfo);
+		ResetFileInfo(ObjQInfo);
+		ResetFileInfo(ObjPInfo);
+
+		ofsProgWrite.open("../work/PROCESSLOG/FILECONTROL.txt",std::ofstream::out | std::ofstream::app);
+		if(ofsProgWrite.is_open())
+		PrintReport(ObjFileInfo,'0');
+		else
+		{
+				strErrorDesc="UNABLE TO OPEN OUTFILELOG:"+string(strerror(errno));
+				throw std::runtime_error(strErrorDesc);
+		}
+
+		//TODO remove later on 
+		ofOutWrite.open("../OUT.log",ios::out | ios::app | ios::binary);
+		if(ofsProgWrite.is_open())
+		{
+
+		}else{
+				cout<<"UNABLE TO OPEN OUTLOG"<<endl;
+				return false;
+		}
+
+		iFNO=0;
+
+		// base path is prepared
+		strInpPath=string(getenv("HOME"));
+		//strInpPath.append("/BUP/QAREA/")
+		strInpPath.append("/BUP/QAREA/");
+		
+		// push work dir path
+		vecPath.push_back(string("../work/STAGE1/"));
+		vecPath.push_back(string("../work/STAGE2/"));
+		vecPath.push_back(string("../work/STAGE3/"));
+		vecPath.push_back(string("../work/REJECT/"));
+		vecPath.push_back(string("../work/BAD/"));
+
+		// list all queue in current basepath
+		// this wont change during program run
+		vecQName=ObjUtil.list_dir(strInpPath.c_str());
+
+		if(!vecQName.size())
+		{
+				throw std::runtime_error("NO QUEUE PRESENT TO PROCESS");
+		}
+
+		string strqname;
+		// display file info
+		for(int iX=0;iX<vecQName.size();++iX){
+		strqname=strInpPath+vecQName[iX]+"/";
+		vecDirList.push_back(strqname);
+		cout<<"QNO:"<<iX+1<<" QNAME:"<<strqname<<endl;
+		}
+
+		iBtNo=0;
+		
+		return true;
+}
+
+bool ParseFile::Run()
+{
+	int inooffiles=0,ibtfiles=0;
+	iQno=-1;
+	
+	//TODO added for terminating to be removed
+	int waitTime = 10;
+	int totalTime =0;
+
+	if(!Init()){
+		cout<<"bool ParseFile::Run() failed"<<endl;
+		return false;
+	}
+
+	int iNoOfQ=vecDirList.size();
+
+	while(1)
+	{
+			// go for next queue
+			++iQno;
+
+			// if qno equal size dirsize then reset to 0
+			if( !(iNoOfQ-iQno))
+			{
+				iQno=0;
+				// new batch will start
+				EndOfBatchProcess();
+			}
+
+			inooffiles=0;
+			
+			
+			// check if any file is present in queue if yes then go for process
+			inooffiles=ObjUtil.listCountOfFileInDir(vecDirList[iQno].c_str());
+			
+			//added on 12jun18
+			if(pStart == 1)
+			{
+
+				if(!inooffiles)
+				{
+					pStart = 1;
+					cout<<"............WAITING FOR FILE...PLEASE UPLOAD THE FILE..."<<endl;
+					sleep(2);
+					continue;
+				}
+				else
+					pStart = 0;
+			}
+			//
+			if(!inooffiles)
+			{
+				cout<<"NO FILE FOUND TO PROCESS..."<<endl;
+				sleep(2);
+				
+				//TODO added for terminating process to be removed
+				totalTime+=2;
+				if(totalTime == waitTime){
+				 return true;
+				}
+																
+				continue;
+			} else {
+					totalTime = 0; //TODO reset total time if new file is added (To be removed added for testing )
+			}
+			// fetch qname
+			strQNAME=vecQName[iQno];
+			// fetch path of qarea with qno..	
+			strInpPath=vecDirList[iQno];
+			
+			cout<<"CURRENT QUEUE IN PROCESS:"<<strInpPath<<endl;
+			// start fetching file from current queue
+			GetNextSubject(strInpPath);
+	}
+return true;
+}
+
+/*
+Input: 	BasePath of DataFiles
+Output: Single valid file to be processed in Input Dir...in open mode
+Desc: 	Pickup one file from qarea and move to input directory 
+*/
+void ParseFile::GetNextSubject(const string strPath)
+{
+		char acSysCmd[200+1];
+
+		bool bflg=ObjUtil.fnFetchNextFile(strPath,strFileNmWithoutPath);
+
+		if(!bflg)
+		{
+				EndOfQueueProcess();
+				return ;
+		}
+
+		strFileNm=strPath+strFileNmWithoutPath;
+		// move file to INPUT folder
+		MEMSET(acSysCmd);
+		sprintf(acSysCmd, "mv \"%s\" \"%s\"",strFileNm.c_str(),vecPath[INPUT].c_str());
+		system(acSysCmd);
+
+		// absolute path of file name changed here
+		strFileNm=vecPath[INPUT]+strFileNmWithoutPath;
+
+		//STEP1: open file for processing
+		bflg=ValidateSub(strFileNm.c_str());
+
+		//STEP2: start processing ..only if above file is validated
+		if(bflg)
+		ProcessSubject();
+
+		//STEP3: end of subject
+		EndOfSubject();		
+
+		// fetch next subject
+		GetNextSubject(strPath);
+}
+
+//  ths funcn throw exception on error
+bool ParseFile::ValidateSub(const char * acfilenm)
+{
+		bool bret=true;
+		int ityp=1;
+		size_t szFileSize=0;
+		string strfilenmwithoutpath;
+
+		char hdr[1000+1];
+
+		szFileSize=Open((char *)acfilenm,ityp,hdr);
+
+		if(!szFileSize)
+		{
+			// fail to open file
+			ObjFileInfo.cErrCode='A';
+			return false;
+		}
+
+		// fetch filenm excluding path
+		string strFileNm(acfilenm);
+		size_t pos =strFileNm.rfind("/");
+		if(pos!=std::string::npos)
+		strfilenmwithoutpath=strFileNm.substr(pos+1);	
+		else
+		strfilenmwithoutpath=strFileNm;
+
+		// filename has to be valid
+		strcpy(ObjFileInfo.acFileNm, strfilenmwithoutpath.c_str()); //TODO name assigned to File info object 
+
+		// copy to orginal filenm
+		strcpy(ObjFileInfo.acOrgFileNm, acfilenm); //TODO name assigned to File info object 
+		
+		// identify file level details
+		ptrParser->GetFileLvlDetail(hdr,strfilenmwithoutpath.c_str(),&ObjFileInfo);
+	
+		// if not valid output then set respective error cdoe
+		if(ObjFileInfo.iFileCd==DEFAULT_FILECD)
+		{
+			ObjFileInfo.cErrCode='B';		// file cd not identified
+			return false;
+		}
+		else if(ObjFileInfo.cFileFmtTyp==DEFAULT_FMT)
+		{
+			ObjFileInfo.cErrCode='C';		// file cd not identified
+			return false;
+		}
+
+
+		// file is valid ..start processing
+		// copy local stored size
+		ObjFileInfo.szFileSize=szFileSize;
+
+		// set functor to parse row as per file
+		IdentifyReadFormat((FileFmtTyp)ObjFileInfo.cFileFmtTyp);
+
+		// reset class level member
+		iRowCnt=0;
+		iRowPos=0;	
+		strErrorDesc="SUCCESS";
+		bInitFlg=true;
+		memset(&ObjData,0x00,sizeof(ArrBufferData));
+
+		// store file no
+		ObjFileInfo.iFileno=GetNextSubNo();	
+		ObjFileInfo.cErrCode='0';	
+
+		// start time
+		time (&start);
+
+		return bret;
+}
+
+/*
+return length of file on success else 0
+*/
+size_t ParseFile::Open(char * filenm, unsigned short int iTyp,char * start)
+{
+	bool bOpenFlg=false;
+	iMethodTyp=2;					// default method typ
+	iReadPos=0;						// pos counter of file
+	size_t length=0;							// calculated in getfilelength
+
+	if(iTyp>0 && iTyp<3)
+	iMethodTyp=iTyp;
+
+	switch(iMethodTyp)
+	{
+		case 1:
+							fp=fopen(filenm,"r");
+							if(fp!=NULL)
+							bOpenFlg=true;
+							else
+							bOpenFlg=false;
+							break;
+		case 2:
+							// ifstream for case 3 and default as well
+							ifs.open(filenm,std::ios::in | std::ios::binary);
+							bOpenFlg=ifs.is_open();
+							break;
+	}
+
+	// throw exception if flag is false 
+	if(!bOpenFlg)
+	{
+		strErrorDesc=string("ERR101:FAIL TO OPEN FILE DESC:")+string(strerror(errno)+string(filenm) );
+		return length;
+	}
+
+	length=GetFileLength(start);
+
+	return length;
+}
+
+size_t ParseFile::GetFileLength(char * header)
+{
+	size_t locLen=0;
+	// fetch next line
+	switch(iMethodTyp)
+	{
+		case 1:
+						// fill header
+						fread((char *)header,1,1000,fp);
+
+						fseek(fp, 0, SEEK_END); 	// seek to end of file
+						locLen = ftell(fp); 			// get current file pointer
+						fseek(fp, 0, SEEK_SET); 	// seek back to beginning of file
+
+						break;
+		case 2:
+						// ifstream
+						ifs.read((char *)header,1000);
+
+						ifs.seekg (0, ifs.end);		// seek to end of file
+						locLen = ifs.tellg();			// get current file pointer
+						ifs.seekg (0, ifs.beg);		// seek back to beginning of file
+						break;
+	}
+
+	return locLen;
+}
+
+void ParseFile::IdentifyReadFormat(FileFmtTyp obj)
+{
+		switch(obj)
+		{
+			case FMT_NEWLINE:
+								FParseFileTyp=&ParseFile::ParseFileTyp1;
+								break;
+			case FMT_MSTNP:
+								FParseFileTyp=&ParseFile::ParseFileTyp2;
+								break;
+			case FMT_PTLF:
+								FParseFileTyp=&ParseFile::ParseFileTyp3;
+								break;
+			case FMT_APPEND:
+								FParseFileTyp=&ParseFile::ParseFileTyp4;
+								break;
+								
+			case FMT_VISAEP:
+								FParseFileTyp=&ParseFile::ParseFileTyp5;	//e
+								break;
+								
+			case FMT_RPY:
+								FParseFileTyp=&ParseFile::ParseFileTyp6;	//f
+								break;
+			
+			case FMT_EP_100:
+								FParseFileTyp=&ParseFile::ParseFileTyp7;	//f
+								break;
+			case FMT_MAESTRO:
+								FParseFileTyp=&ParseFile::ParseFileTyp8;	//f
+								break;
+			case FMT_TT1123:
+								FParseFileTyp=&ParseFile::ParseFileTyp9;	//f
+								break;
+		}
+}
+
+void ParseFile::ProcessSubject()
+{
+		unsigned int ileftoverpos=0;				// pos in buf of unprocessed data
+		 int isizeofLeftover=0;							// size of unprocessed data
+		long lBytesRead=0;									// bytes succesful read into buf
+		const int MAXRECORDSZ=1024;					// max record size
+		bool bInitFlg=true;
+		bool bEOF=false;
+
+		// C1
+		lRawSeqNo[iQno].lCurrPos=lRawSeqNo[iQno].lLastPos;
+
+		do{
+
+		// set it to 0
+		iRowCnt=0;		// counter for total no of element added in vector
+		iRowPos=0;		// counter for consumed element
+
+
+		// read next block from file and save it into buf,right after the "left over" buffer
+		//GetRawData();			
+		switch(iMethodTyp)
+		{
+			case 1:
+							lBytesRead=fread((char *)acreaddata+isizeofLeftover,1,sizeof(acreaddata)-isizeofLeftover-1, fp);	
+							if(feof(fp))
+							bEOF=1;
+							else if(ferror(fp))
+							ObjFileInfo.cErrCode='E';								
+							break;
+			case 2:
+							// ifstream
+							ifs.read((char *)acreaddata+isizeofLeftover,sizeof(acreaddata)-isizeofLeftover-1);
+							lBytesRead=ifs.gcount();
+							bEOF = ifs.eof(); //TODO Added on failure
+							break;
+		}
+
+		if(lBytesRead<0)
+		{
+			// some problem with read / end of 
+			lBytesRead=0;
+		}
+
+		if(bInitFlg)
+		{
+			// validate data
+			bInitFlg=false;
+		}
+		// add null terminator at end of buffer
+		acreaddata[lBytesRead+isizeofLeftover] = '\0';
+					
+		// create array of rawdata...returns leftoverposition in buffer
+		ileftoverpos=(*this.*FParseFileTyp)(acreaddata,lBytesRead+isizeofLeftover,bEOF);
+
+		// added to detect error while forming txn
+		// soze of unprocessed data has to be less than or equal to input array..if greater then error
+		if(ileftoverpos>(lBytesRead+isizeofLeftover))	
+		{
+			ObjFileInfo.cErrCode='D';		// set proper error code
+			return;
+		}
+
+		// update read pointer
+		iReadPos+=ileftoverpos;
+		// read call counter
+		++ObjFileInfo.iNoOfBlockRead;
+		// bulk read accumulate
+		ObjFileInfo.szReadSize+=lBytesRead;
+
+		// parse array of rawdata into norm format
+		ProcessRow(iRowCnt,iRowPos);			
+
+		// calculate leftover buf size
+		// the remaining unprocessed buffer that was not processed by Process	
+		isizeofLeftover=lBytesRead+isizeofLeftover-ileftoverpos;	
+
+		// put check oon sizeofleftover
+		if(isizeofLeftover<0)
+		isizeofLeftover=0;
+		else if(isizeofLeftover>(lBytesRead+isizeofLeftover))
+		{
+				cout<<"No space left on buffer to accomodate new line ..increase buf size...rerun program"<<endl;
+				break;
+		}		
+
+    // If we have a leftover unprocessed buffer, move it to the beginning of  
+    // read buffer so that when reading the next block, it will connect to the 
+    // current leftover and together complete a full readable line
+		if(ileftoverpos!=0 && isizeofLeftover!=0) 
+		memmove(acreaddata,acreaddata+ileftoverpos,isizeofLeftover);
+
+		}while(!bEOF);
+}
+
+/*
+Process row by row
+*/
+void ParseFile::ProcessRow(const int iFillPos,int & iCurrPos)
+{					
+		bool processRet; //TODO process failure will terminate further execution
+		
+		// enter while..process array of data 
+		while( (iFillPos-iCurrPos)>0)
+		{
+
+				// check if it is success/ failure	
+				//ofOutWrite<<"D"<<iCurrPos+1<<"|"<<arrRowData[iRowPos].iRowSz<<"|"<<arrRowData[iRowPos].acRawdata<<endl;
+				processRet = ptrParser->Process(arrRowData[iCurrPos]); 
+				++iCurrPos;
+		}
+		// update total row
+		ObjFileInfo.lRNO+=iRowCnt;
+}
+
+
+void ParseFile::EndOfSubject()
+{
+		// get normaliser section controls from parser
+		FileInfo parseinfo=ptrParser->GetFileCtrl();
+	
+		// tally controls at file level if enabled
+		int tallystep=0;
+
+		// copy details
+		ObjFileInfo.lSuccCnt=parseinfo.lSuccCnt;
+		ObjFileInfo.lBadCnt=parseinfo.lBadCnt;
+		ObjFileInfo.lDiscCnt=parseinfo.lDiscCnt;
+
+		// tally count of processing
+		long lTotalCnt=ObjFileInfo.lSuccCnt+ObjFileInfo.lBadCnt+ObjFileInfo.lDiscCnt;
+		if(ObjFileInfo.lRNO!=lTotalCnt)
+		{
+			// take action if program has not processed all record...rollback 
+			ObjFileInfo.cErrCode='X';
+		}
+
+		for(int ix=0;ix<MAX_CNTAMT_SLOT;++ix)
+		{
+			ObjFileInfo.arrCntAmt[ix].Cnt=parseinfo.arrCntAmt[ix].Cnt;
+			ObjFileInfo.arrCntAmt[ix].Amt1=parseinfo.arrCntAmt[ix].Amt1;
+			ObjFileInfo.arrCntAmt[ix].Amt2=parseinfo.arrCntAmt[ix].Amt2;
+		}
+
+		int icnt=MAX_CNTAMT_SLOT/2;		// half the no of slots cntrl
+
+		// compare tank level control ..TODO lateron
+/*
+		for(int ix=0;ix<icnt;++ix)
+		{
+				if(ix!=(icnt-1)){
+
+				if(!ObjFileInfo.arrCntAmt[ix].Cnt-ObjFileInfo.arrCntAmt[ix+icnt].Cnt)
+					if(!(int)(ObjFileInfo.arrCntAmt[ix].Amt1-ObjFileInfo.arrCntAmt[ix+icnt].Amt1))
+						if(!(int)(ObjFileInfo.arrCntAmt[ix].Amt2-ObjFileInfo.arrCntAmt[ix+icnt].Amt2))
+						++tallystep;
+
+				}else{
+
+					//icnt-1 ..since total need not be tallied if rejection is there...tally only count				
+					if(!ObjFileInfo.arrCntAmt[ix].Cnt-ObjFileInfo.arrCntAmt[ix+icnt].Cnt)
+					++tallystep;
+
+				}
+		}
+*/
+		// check if tally flag is enable if yes then validate controls
+		if(ObjFileInfo.bFileCtrlFlg!=0)
+		{
+				// if tally is till end then
+				if(tallystep<icnt)
+				ObjFileInfo.cErrCode='Y';			// not tallied ..this will rollback process
+		}
+
+		// override tally step to filcntrlflg
+		ObjFileInfo.bFileCtrlFlg=tallystep;
+
+		// check if strfilenm is proper
+		char acSysCmd[200+1];
+		MEMSET(acSysCmd);
+		if(ObjFileInfo.cErrCode!='0')
+		sprintf(acSysCmd, "mv \"%s\" \"%s\"", strFileNm.c_str(),vecPath[REJECT].c_str());
+		else{
+			sprintf(acSysCmd, "mv \"%s\" \"%s\"", strFileNm.c_str(),vecPath[PROCESSING].c_str());
+
+			// C2:update only on success...
+			lRawSeqNo[iQno].lLastPos=lRawSeqNo[iQno].lCurrPos;
+		}
+
+		// execute command
+		system(acSysCmd);
+
+		ResetRow();
+		// close the file
+		Close();
+		// start time
+		time (&end);
+	
+		// update fileinfo
+		ObjFileInfo.iProcTime = difftime (end,start);
+
+		vecFileLvlInfo.push_back(ObjFileInfo);
+
+		PrintReport(ObjFileInfo,'1');
+
+		// reset fileinfo
+		ResetFileInfo(ObjFileInfo);
+}
+
+/*
+Desc: Perform action on end of queue process..20MAR
+*/
+void ParseFile::EndOfQueueProcess()
+{
+		// move all file from processing to processed
+		unsigned short int iSz=vecFileLvlInfo.size();
+		string strSrcPath;
+		char acSysCmd[200+1];
+
+		// override queue no 
+		strcpy(ObjQInfo.acOrgFileNm,strQNAME.c_str());
+
+		for(int iX=0;iX<iSz;++iX)
+		{
+				// file level total
+				ObjQInfo.iFileCd+=1;
+				if(vecFileLvlInfo[iX].cErrCode!='0'){
+				ObjQInfo.iFileno+=1;		// rejectcnt
+				continue;								// go for next record
+				}
+				else
+				ObjQInfo.bFileCtrlFlg+=1;		// successcnt
+
+
+				// form processing path..move to processed
+				strSrcPath=vecPath[PROCESSING]+vecFileLvlInfo[iX].acFileNm;
+				MEMSET(acSysCmd);
+				sprintf(acSysCmd, "mv \"%s\" \"%s\"", strSrcPath.c_str(),vecPath[PROCESSED].c_str());
+				system(acSysCmd);				
+
+				// accumulate total at queue level
+				ObjQInfo.szFileSize+=vecFileLvlInfo[iX].szFileSize;
+				ObjQInfo.szReadSize+=vecFileLvlInfo[iX].szReadSize;
+				ObjQInfo.iNoOfBlockRead+=vecFileLvlInfo[iX].iNoOfBlockRead;
+				ObjQInfo.iProcTime+=vecFileLvlInfo[iX].iProcTime;
+				ObjQInfo.iProcTime2+=vecFileLvlInfo[iX].iProcTime2;
+				ObjQInfo.iProcTime3+=vecFileLvlInfo[iX].iProcTime3;
+				ObjQInfo.lRNO+=vecFileLvlInfo[iX].lRNO;
+				ObjQInfo.lSuccCnt+=vecFileLvlInfo[iX].lSuccCnt;
+				ObjQInfo.lBadCnt+=vecFileLvlInfo[iX].lBadCnt;
+				ObjQInfo.lDiscCnt+=vecFileLvlInfo[iX].lDiscCnt;
+
+				// controls
+/*
+				ObjQInfo.lSlotCnt1+=vecFileLvlInfo[iX].lSlotCnt1;
+				ObjQInfo.lSlotCnt2+=vecFileLvlInfo[iX].lSlotCnt2;
+				ObjQInfo.lSlotCnt3+=vecFileLvlInfo[iX].lSlotCnt3;
+				ObjQInfo.lSlotCnt4+=vecFileLvlInfo[iX].lSlotCnt4;
+				ObjQInfo.lSlotCnt5+=vecFileLvlInfo[iX].lSlotCnt5;
+				ObjQInfo.lSlotCnt6+=vecFileLvlInfo[iX].lSlotCnt6;
+
+				ObjQInfo.dSlotAmt1+=vecFileLvlInfo[iX].dSlotAmt1;
+				ObjQInfo.dSlotAmt2+=vecFileLvlInfo[iX].dSlotAmt2;
+				ObjQInfo.dSlotAmt3+=vecFileLvlInfo[iX].dSlotAmt3;
+				ObjQInfo.dSlotAmt4+=vecFileLvlInfo[iX].dSlotAmt4;
+				ObjQInfo.dSlotAmt5+=vecFileLvlInfo[iX].dSlotAmt5;
+				ObjQInfo.dSlotAmt6+=vecFileLvlInfo[iX].dSlotAmt6;
+*/
+
+				for(int ix=0;ix<MAX_CNTAMT_SLOT;++ix)
+				{
+					ObjQInfo.arrCntAmt[ix].Cnt+=vecFileLvlInfo[iX].arrCntAmt[ix].Cnt;
+					ObjQInfo.arrCntAmt[ix].Amt1+=vecFileLvlInfo[iX].arrCntAmt[ix].Amt1;
+					ObjQInfo.arrCntAmt[ix].Amt2+=vecFileLvlInfo[iX].arrCntAmt[ix].Amt2;
+				}
+
+				// psh to high lvl container
+				vecTotalInfo.push_back(vecFileLvlInfo[iX]);				
+		}
+
+		// accumulate total at batch level
+		ObjPInfo.cFileFmtTyp+=ObjQInfo.cFileFmtTyp;
+		ObjPInfo.iFileno+=ObjQInfo.iFileno;
+		ObjPInfo.bFileCtrlFlg+=ObjQInfo.bFileCtrlFlg;
+		ObjPInfo.iFileCd+=ObjQInfo.iFileCd;
+
+		ObjPInfo.szFileSize+=ObjQInfo.szFileSize;
+		ObjPInfo.iNoOfBlockRead+=ObjQInfo.iNoOfBlockRead;
+		ObjPInfo.iProcTime+=ObjQInfo.iProcTime;
+		ObjPInfo.iProcTime2+=ObjQInfo.iProcTime2;
+		ObjPInfo.iProcTime3+=ObjQInfo.iProcTime3;
+		ObjPInfo.szReadSize+=ObjQInfo.szReadSize;
+		ObjPInfo.lRNO+=ObjQInfo.lRNO;
+		ObjPInfo.lSuccCnt+=ObjQInfo.lSuccCnt;
+		ObjPInfo.lBadCnt+=ObjQInfo.lBadCnt;
+		ObjPInfo.lDiscCnt+=ObjQInfo.lDiscCnt;
+
+/*
+		ObjPInfo.lSlotCnt1+=ObjQInfo.lSlotCnt1;
+		ObjPInfo.lSlotCnt2+=ObjQInfo.lSlotCnt2;
+		ObjPInfo.lSlotCnt3+=ObjQInfo.lSlotCnt3;
+		ObjPInfo.lSlotCnt4+=ObjQInfo.lSlotCnt4;
+		ObjPInfo.lSlotCnt5+=ObjQInfo.lSlotCnt5;
+		ObjPInfo.lSlotCnt6+=ObjQInfo.lSlotCnt6;
+
+		ObjPInfo.dSlotAmt1+=ObjQInfo.dSlotAmt1;
+		ObjPInfo.dSlotAmt2+=ObjQInfo.dSlotAmt2;
+		ObjPInfo.dSlotAmt3+=ObjQInfo.dSlotAmt3;
+		ObjPInfo.dSlotAmt4+=ObjQInfo.dSlotAmt4;
+		ObjPInfo.dSlotAmt5+=ObjQInfo.dSlotAmt5;
+		ObjPInfo.dSlotAmt6+=ObjQInfo.dSlotAmt6;
+*/
+
+		for(int ix=0;ix<MAX_CNTAMT_SLOT;++ix)
+		{
+			ObjPInfo.arrCntAmt[ix].Cnt+=ObjQInfo.arrCntAmt[ix].Cnt;
+			ObjPInfo.arrCntAmt[ix].Amt1+=ObjQInfo.arrCntAmt[ix].Amt1;
+			ObjPInfo.arrCntAmt[ix].Amt2+=ObjQInfo.arrCntAmt[ix].Amt2;
+		}
+
+		// print queue level info 
+		PrintReport(ObjQInfo,'2');
+
+		// reset qinfo
+		ResetFileInfo(ObjQInfo);
+
+		// clear file level info as now moved to queue level
+		vecFileLvlInfo.clear();
+
+		cout<<"END OF QUEUE PROCESS"<<endl;
+		
+		//ptrParser ->printCAT140(); //TODO to be removed added for testing
+}
+/*
+Desc: Batch of Process End
+*/
+void ParseFile::EndOfBatchProcess()
+{
+		cout<<"ENTERED BATCH PROCESS"<<endl;
+
+		// advance batch no 
+		++iBtNo;
+
+		sprintf(ObjPInfo.acOrgFileNm,"BATCHNO:%d",iBtNo);
+
+		// print batch level info only if file is processed 
+		// iFileCd stores total no of input file ..see EndOfQueue()
+		if(ObjPInfo.iFileCd>0)
+		PrintReport(ObjPInfo,'3');
+
+		// all files are processed succesfully
+		cout<<"END OF BATCH PROCESS"<<endl;
+
+		// reset batchinfo
+		ResetFileInfo(ObjPInfo);
+
+}
+
+int ParseFile::GetNextSubNo()
+{
+	return ++iFNO;
+}
+
+// add row to buffer
+void ParseFile::AddRow(ArrBufferData & objdata)
+{
+		// copy to vector
+		// put null at end
+		objdata.acRawdata[ObjData.iRowSz]='\0';
+		objdata.iFilecd=ObjFileInfo.iFileCd;
+		objdata.iFileno=ObjFileInfo.iFileno;
+		objdata.lTankSeq=GetNextTankSeqNo();
+
+		// add to queue
+		arrRowData[iRowCnt++]=objdata;
+
+		ResetRow();		// reset row as it is added to buffer
+}
+
+void ParseFile::ResetRow()
+{
+		memset(&ObjData,0x00,sizeof(ArrBufferData)); 
+}
+
+void ParseFile::ResetFileInfo(FileInfo & ObjInfo)
+{
+		memset(&ObjInfo,0x00,sizeof(FileInfo)); 
+
+		ObjInfo.cErrCode='0';
+}
+
+// search for '\n' in string..input will be 
+unsigned int ParseFile::ParseFileTyp1(const char * rawdata,long lBufSz,bool beof)
+{
+		const char * curr=NULL;
+		int isz=0,icnt=0;
+		unsigned int currpos=0;
+
+		while(currpos<lBufSz)
+		{
+			//curr=strchr(rawdata+currpos,'\n');
+			curr = (char*)memchr(rawdata+currpos, '\n', lBufSz-currpos);
+
+			// if newline not found then break..come out of loop
+			if(!curr)
+			break;
+
+			isz=curr-(rawdata+currpos);
+
+			// copy till \r
+			if( *(curr-1) =='\r')
+			isz-=1;
+
+			if( (ObjData.iRowSz+isz)>MAX_RAWDATA_LEN)
+			{
+					// raise error for buffer overflow..some logical problem
+					strErrorDesc="PAF001:ROWSZ:"+toString(ObjData.iRowSz)+" IS GREATER THAN MAX LENGTH:"+toString(MAX_RAWDATA_LEN);
+					return lBufSz+1;		// error return noofbytes+1 size
+			}
+			
+			strncpy(ObjData.acRawdata+ObjData.iRowSz, rawdata+currpos, isz);
+			ObjData.iRowSz+=isz;
+			
+			if(isz>0)
+			AddRow(ObjData);
+
+			currpos+=curr-(rawdata+currpos);
+			++currpos;	// past \n since curr point there
+		}
+
+		return currpos;
+}
+
+// master np..TT067
+unsigned int ParseFile::ParseFileTyp2(const char * rawdata,long lBufSz,bool beof)
+{
+	
+}
+// ptlf processing
+unsigned int ParseFile::ParseFileTyp3(const char * rawdata,long lBufSz,bool beof)
+{ 
+	char ch='\0';
+	const char * curr=rawdata;									// local pointer to input buffer
+	char acRecLen[6+1];MEMSET(acRecLen);
+	char acSubRecLen[6+1];	MEMSET(acSubRecLen);
+	unsigned int iRecLen=0,iLocRecLen=0;
+	unsigned int iSubRecLen=0;
+	unsigned int currpos_typ3=0;								// curr pos
+	int k=0,index1=0;
+
+	while(currpos_typ3<lBufSz){
+ 		
+		k=0;
+		index1=currpos_typ3;
+		// fetch 1st 6bytes ..call it as recordlen...total line len...
+		for(int i=0;i<6;i++)
+		{
+			ch = curr[index1++];
+
+			if(ch <48)
+				i--;
+			else
+				acRecLen[k++] = ch;
+		}
+		acRecLen[k] = '\0';
+		// convert into number
+		iRecLen=atoi(acRecLen);
+
+		// copy reclen to local reclen as it will be manipulated below
+		iLocRecLen=iRecLen;
+		// reduce by 6 as reclen is inclusive of this no
+		iLocRecLen-=6;	
+
+		// check if we have suffiecient data in input buffer ..
+		// fetch full record..if present else break
+		if( (lBufSz-index1)<iLocRecLen)
+		break;
+
+		// copy back to currpos
+		currpos_typ3=index1;
+
+		// form subrec subroutine
+		do{
+		k=0;
+		// fetch next 6bytes ...cal it as subreclen...subrecord line len
+		for(int i=0;i<6;i++)
+		{
+			ch = curr[currpos_typ3++];
+			if(ch <48)
+				i--;
+			else
+				acSubRecLen[k++] = ch;
+		}
+		acSubRecLen[k] = '\0';
+		// convert into number
+		iSubRecLen=atoi(acSubRecLen);
+		
+		//  prepare rowdata ...TODO..purification for ascii<27
+		//strncpy(ObjData.acRawdata+ObjData.iRowSz, curr+currpos_typ3, iSubRecLen-6);
+		
+		char *dest=ObjData.acRawdata+ObjData.iRowSz;
+		const char *src=curr+currpos_typ3;
+		
+		for(int i=0; i<iSubRecLen-6 ; i=i+1){
+				if(*src == '\0'){
+							*dest='O';
+				}else {
+							*dest= *src;
+				}
+				dest++;
+				src++;
+		}
+		
+		ObjData.iRowSz=iSubRecLen-6;
+		// add to output buffer
+		AddRow(ObjData);
+		
+		// increase pointer by rowsz
+		currpos_typ3+=iSubRecLen-6;
+		// decrese reclen by subreclen
+		iLocRecLen-=iSubRecLen;
+		}while(iLocRecLen>0);
+
+		
+	}//end of while
+
+	return currpos_typ3;
+}
+// append format ..search for \nXXX0..if found break
+// this logic is applicable for visactf/dcf/cyber/
+unsigned int ParseFile::ParseFileTyp4(const char * rawdata,long lBufSz,bool beof)
+{
+	const char * curr=NULL;
+	const char * prev=NULL;
+	int isz=0,itcr=0;
+	unsigned int currpos_typ6=0,currpos=0;
+
+	// set to start
+	prev=rawdata;
+
+	while(1)
+	{
+		//curr=strchr(rawdata+currpos,'\n');
+			curr = (char*)memchr(rawdata+currpos, '\n', lBufSz-currpos);
+	
+		// if newline not found then break..come out of loop
+		if(!curr)
+		{
+			break;
+		}
+
+		currpos+=curr-(rawdata+currpos);
+		++currpos;	// past \n since curr point there
+
+		if( *(curr+4)!='0')
+		{
+			continue;
+		}
+
+		// special case for cyber...tcrno=0 and appcode=CP01 then only break else continue
+		// NOTE: Loop will continue on following conditions
+		// 1. FileCode = CYBER AND
+		// 2. Record starts with "33" AND		
+		// 3. Record does not consist of "CP01" at position 16 AND(Taken as 17 becuase of '\n')
+		// 4. Record does not consist of "TRLR" from position 16 AND
+		// 5. Record does not have '0' at positions 3 and 4
+		if( ObjFileInfo.iFileCd==CYBER && (!strncmp(curr+1,"33",2)) && (strncmp(curr+17,"CP01",4)!=0) && (strncmp(curr+17,"TRLR",4)!=0) 
+			&& (strncmp(curr+4,"00",2)!=0)){
+			continue;
+		}
+		// for visa ctf also currency data comes in append..so break those into multiples
+
+		isz=curr-prev;
+
+		if( (ObjData.iRowSz+isz)>MAX_RAWDATA_LEN)
+		{
+				// raise error for buffer overflow..some logical problem
+				strErrorDesc="PAF001:ROWSZ:"+toString(ObjData.iRowSz)+" IS GREATER THAN MAX LENGTH:"+toString(MAX_RAWDATA_LEN);
+				return lBufSz+1;	// return error
+		}
+		
+		//strncpy(ObjData.acRawdata+ObjData.iRowSz, prev, isz);
+		//memcpy(ObjData.acRawdata+ObjData.iRowSz, prev, isz);
+		ObjData.iRowSz+=isz;
+
+		// filter newline ...here ObjData.iRowSz reduces by no of "\n,\r"
+		RemoveNewLine(prev, ObjData.acRawdata, ObjData.iRowSz);
+		
+		if(isz>0)
+		AddRow(ObjData);
+
+		// update prev pointer
+		prev=curr+1;
+
+	}
+
+	if(beof)
+	{
+		// check if still some data is left to be processed
+		isz=(rawdata+lBufSz)-prev;
+		// some remaining data then copy
+		if(isz>10)
+		{
+			//strncpy(ObjData.acRawdata+ObjData.iRowSz, prev, isz);
+			ObjData.iRowSz+=isz;
+			// filter newline ...here ObjData.iRowSz reduces by no of "\n,\r"
+			RemoveGarbage(prev, ObjData.acRawdata,ObjData.iRowSz);
+			AddRow(ObjData);
+		}else{
+			// no lefover data 
+		}
+		// point to end..in case of eof
+		prev=rawdata+lBufSz;
+	}
+
+	// update last curr pos
+	currpos_typ6=prev-rawdata;
+
+	return currpos_typ6;	
+}
+
+unsigned int ParseFile::ParseFileTyp7(const char * rawdata,long lBufSz,bool beof)
+{
+		char  READLINE[4096];
+	memset(READLINE,0x00,sizeof(READLINE));
+	char anData[135];
+	char anTemp1[35], anTemp2[102];
+	int iTrav=0, iDateInd=0;
+	int fsize=0;
+
+	int i=0, iflg = 0,currpos  =0;
+
+	const char * LeftData =NULL;
+	while(iTrav < lBufSz)
+	{
+		
+		i=0;
+		memset(anData, ' ', sizeof(anData));
+		while(rawdata[iTrav]!='\n')
+		{
+			iflg = 0;
+			anData[i++]=rawdata[iTrav++];
+			if(iTrav > lBufSz)
+			{	
+				iflg = 1;
+				break; 
+			}
+		}
+		anData[i]='\0';
+		if(iflg == 1 && rawdata[iTrav]!='\n')
+		{
+			break;
+		}
+		
+		iTrav++;
+	
+
+		if(strlen(anData) == 0)
+		{
+			break;
+		}
+		if(anData[0]!=0 && strlen(anData)!=134 )	//from  file we get anData size 134 ...old size is 133
+		{
+			cout<<"Length of Record Not match\n"<<endl;
+			
+		}
+
+		memset(anTemp1, 0x00, sizeof(anTemp1));
+		strncpy(anTemp1,anData+0,33);
+		*(anTemp1+33)='\0';
+		ObjUtil.trim(anTemp1);
+		memset(anTemp2, 0x00, sizeof(anTemp2));
+		strncpy(anTemp2,anData+33,100);
+		*(anTemp2+100)='\0';
+		ObjUtil.trim(anTemp2);
+
+		
+		
+		if(strstr(anData,"----+----")!=NULL)
+		{			
+			
+			iTcrCnt=1;
+			if(READLINE[0]!=0)
+			{
+				strcat(READLINE,"|");
+				//fprintf(stderr,"%s\n",READLINE);
+				if(strcmp(ObjData_ReadLine,READLINE)!=0)
+				{ 
+					strcpy(ObjData.acRawdata, READLINE);
+					cout<<ObjData.acRawdata<<endl;
+				//myfile<<ObjData.acRawdata;
+					ObjData.iRowSz = strlen(ObjData.acRawdata);
+					AddRow(ObjData);
+				
+					MEMSET(ObjData_ReadLine);
+					strcpy(ObjData_ReadLine,READLINE);
+				}
+		
+				//myfile<<READLINE;
+				//myfile<<"\n";
+				memset(READLINE,0x00,sizeof(READLINE));
+				/*if(!ptrFileNorm->Process(ObjWorkItem))//copy READLINE into the file
+					return FAILURE;*/
+			}
+		}
+		if(anTemp1[0]=='B')
+		{
+				LeftData = strstr(rawdata,anData);
+		}
+		if(anTemp1[0]==0 && anTemp2[0]!=0 && iTcrCnt==1)
+		{
+			strncpy(READLINE,anTemp2+26,23);
+			*(anTemp2+23)='\0';
+			iTcrCnt=0;
+	
+		}
+		if(anTemp1[0]!=0 && anTemp2[0]=='*')
+		{
+			ObjUtil.trim(anData);
+			if((anData[0]!='F' && anData[0]!='B') && anData[0]=='V')
+			{
+				anTemp1[5]='|';
+				sprintf(READLINE,"%s|%s",READLINE,anTemp1+1);		
+			}
+		}
+		if(anTemp1[0]!=0 && anTemp2[0]==0)
+		{
+			ObjUtil.trim(anData);
+			if(anData[0]!='F' && anData[0]!='B')
+				sprintf(READLINE,"%s%s",READLINE,anTemp1);
+		}
+	}//while
+
+	if(READLINE[0]!=0)
+	{
+		strcat(READLINE,"|");
+		//fprintf(stderr,"%s\n",anRec);
+			strcpy(READLINE,READLINE);
+		
+				if(strcmp(ObjData_ReadLine,READLINE)!=0)
+				{ 
+					strcpy(ObjData.acRawdata, READLINE);
+					cout<<ObjData.acRawdata<<endl;
+				//myfile<<ObjData.acRawdata;
+					ObjData.iRowSz = strlen(ObjData.acRawdata);
+					AddRow(ObjData);
+				
+					MEMSET(ObjData_ReadLine);
+					strcpy(ObjData_ReadLine,READLINE);
+				}
+				
+				
+		LeftData = strstr(rawdata,anData);
+		
+		memset(READLINE,0x00,sizeof(READLINE));
+		
+		
+	}
+//	myfile.close();
+		
+	if(LeftData!= NULL)
+		currpos = LeftData- rawdata;
+	else
+		currpos = iTrav-1;
+
+		
+	return currpos ;
+}
+
+
+unsigned int ParseFile::ParseFileTyp5(const char * rawdata,long lBufSz,bool beof)
+{
+	char * curr=NULL;
+	char * ptrcurr=NULL;
+	 char * ptrAdv;
+	int isz=0,icnt=0,i=0,iAcqFlg=0;
+	 int currpos=0;
+	char  READLINE[4096];
+	//ofstream myfile ("ReadlineoutputFile/ReadlineVisaEp200.txt");
+	char anData[135];
+	char anTemp[80];
+	
+	curr=(char*)rawdata;
+	
+	ptrcurr = (char*)rawdata;
+	
+	do
+	{
+	
+		iAcqFlg = 0;
+		ptrcurr=(char*)strstr(ptrcurr,"RETURNED REASON");
+		if(ptrcurr!=NULL)
+		{
+			currpos =	ptrcurr-curr;
+			currpos++;
+		}
+			
+		if(ptrcurr!=NULL && currpos<lBufSz)
+		{
+		}
+		else
+		{
+			if(currpos==0)
+				currpos = lBufSz;
+				
+			break;
+		}
+			
+		ptrAdv=strstr(ptrcurr+20, "RETURNED REASON");
+		if(ptrAdv==NULL)
+		{
+			ptrAdv=ptrcurr;
+			for(; *(ptrAdv++)!=0;);
+		}
+
+		while(ptrcurr < ptrAdv)
+		{
+		i=0;
+		while(*(ptrcurr++) != '\n' && ptrcurr < ptrAdv )
+		{
+			anData[i++]=*(ptrcurr-1);
+			
+		}
+		
+		if(strstr(anData,"RETURNED REASON")!=NULL)
+		{
+			strncpy(READLINE,anData+26,4);
+			*(READLINE+4)='\0';
+			strcat(READLINE,"|");
+			strncpy(anTemp,anData+30,65);
+			*(anTemp+65)='\0';
+			strcat(READLINE,anTemp);
+			strcat(READLINE,"|");
+
+		}
+		else if(strstr(anData,"Acquirer Reference Nbr")!=NULL)
+		{
+			strncpy(anTemp,anData+27,23);
+			*(anTemp+23)='\0';
+			strcat(READLINE,anTemp);
+			strcat(READLINE,"|");
+			iAcqFlg = 1;
+		}
+		else {}
+
+			memset(anData,0,sizeof(anData));
+		}
+		if(iAcqFlg ==0)
+		{
+			strcat(READLINE,"NULL");
+			strcat(READLINE,"|");
+		}
+		cout<<endl;
+		strcpy(ObjData.acRawdata, READLINE);
+		cout<<ObjData.acRawdata<<endl;
+		ObjData.iRowSz = strlen(ObjData.acRawdata);
+		AddRow(ObjData);
+		memset(READLINE,0x00,sizeof(READLINE));
+		
+		
+		
+	}
+	while(1);
+		
+	
+	return currpos;
+	
+	return true;
+}
+
+unsigned int ParseFile::ParseFileTyp6(const char * rawdata,long lBufSz,bool beof)
+{
+
+	char * mapFp= (char*)rawdata;
+	char * start=mapFp;
+	char * acstartData=mapFp;
+	char * TempData = NULL;
+	char * end=NULL;
+	char * data=NULL;
+	
+	string Tag[3+1];
+	
+	Tag[0] = "Hdr";
+	Tag[1] = "Txn";
+	Tag[2] = "Trl";	
+	
+	string key,value,modkey, endTag;
+	string mapOfTagsValues[54];
+	
+	vector	<string> mapOfTags;
+	int flag = 0, iTag = 0;
+	int currpos=0;
+	
+	mapOfTags.clear ();
+	
+	mapOfTags.push_back("nodeTag");
+	mapOfTags.push_back("nARD");
+	mapOfTags.push_back("nAcqInstCd");
+	mapOfTags.push_back("nAmtAdd");
+	mapOfTags.push_back("nAmtBil");
+	mapOfTags.push_back("nAmtSet");
+	mapOfTags.push_back("nAmtTxn");
+	mapOfTags.push_back("nApprvlCd");
+	mapOfTags.push_back("nCaseNum");
+	mapOfTags.push_back("nCcyCdBil");
+	mapOfTags.push_back("nCcyCdSet");
+	mapOfTags.push_back("nCcyCdTxn");
+	mapOfTags.push_back("nContNum");
+	mapOfTags.push_back("nConvRtBil");
+	mapOfTags.push_back("nConvRtSet");
+	mapOfTags.push_back("nCrdAcpBussCd");
+	mapOfTags.push_back("nCrdAcptTrmId");
+	mapOfTags.push_back("nDocInd");
+	mapOfTags.push_back("nDtSet");
+	mapOfTags.push_back("nDtTmFlGen");
+	mapOfTags.push_back("nDtTmLcTxn");
+	mapOfTags.push_back("nDtTmTrns");
+	mapOfTags.push_back("nFeeAmt");
+	mapOfTags.push_back("nFeeCcy");
+	mapOfTags.push_back("nFeeDcInd");
+	mapOfTags.push_back("nFeeTpCd");
+	mapOfTags.push_back("nFlCatg");
+	mapOfTags.push_back("nFulParInd");
+	mapOfTags.push_back("nFunCd");
+	mapOfTags.push_back("nIntrchngCtg");
+	mapOfTags.push_back("nIntrnTrackNum");
+	mapOfTags.push_back("nLtPrsntInd");
+	mapOfTags.push_back("nMTI");
+	mapOfTags.push_back("nMemInstCd");
+	mapOfTags.push_back("nMemMsgTxt");
+	mapOfTags.push_back("nMsgRsnCd");
+	mapOfTags.push_back("nOrgSetDt");
+	mapOfTags.push_back("nPAN");
+	mapOfTags.push_back("nProcCd");
+	mapOfTags.push_back("nProcSts");
+	mapOfTags.push_back("nProdCd");
+	mapOfTags.push_back("nRECNUM");
+	mapOfTags.push_back("nRGCSRcvdDt");
+	mapOfTags.push_back("nRGCSRejRsnCd");
+	mapOfTags.push_back("nRRN");
+	mapOfTags.push_back("nRecNum");
+	mapOfTags.push_back("nRnTtlAmt");
+	mapOfTags.push_back("nSetBIN");
+	mapOfTags.push_back("nSetDCInd");
+	mapOfTags.push_back("nTxnCnt");
+	mapOfTags.push_back("nTxnDesInstCd");
+	mapOfTags.push_back("nTxnOrgInstCd");
+	mapOfTags.push_back("nUnFlNm");
+	mapOfTags.push_back("nVerNum");
+
+	// remove this
+	// put comment 
+	// remove this tags ....
+	if((strstr(start,"?>"))!=NULL)
+			iTag = 0;
+	else 
+		iTag = 1;
+		
+		
+	for(int s=1;s<mapOfTags.size();s++)
+	{
+		mapOfTagsValues[s] = " ";
+	}
+					
+
+	while(1){
+
+		flag = 0;
+		if(iTag == 0)
+			mapOfTagsValues[0] = "Hdr";
+		else if(iTag == 1)
+			mapOfTagsValues[0] = "Txn";
+		else
+			mapOfTagsValues[0] = "Trl";
+			
+		endTag  = "<"+Tag[iTag] + ">"; 
+		
+		if((strstr(start,endTag.c_str()))!=NULL)
+		{
+			start = strstr(start,endTag.c_str());
+		}
+		else
+		{
+			iTag++;
+			if(iTag == 3)
+			{
+				currpos = end - mapFp;
+				break;
+			}
+			else
+				continue;
+		}
+		
+		endTag  = "</"+Tag[iTag] + ">";
+		end=strstr(start,endTag.c_str());		
+		
+		if (end == NULL)
+		{
+			currpos = start-mapFp;
+			return currpos;
+
+		}
+		
+			while((start=strstr(start,"<n"))!=NULL && start<end )
+			{
+					value.clear();
+					key.clear();
+								
+					// fetch key value till ">"
+					while(*(++start)!='>')
+					key.push_back(*start) ;
+
+					// advance start by 1 set data pointer here
+					data=(++start);
+
+					// prepare mod key append key
+					modkey="</"+key ;	
+	
+					// search for end tag here
+					start=strstr(start,modkey.c_str());	
+										//acstartData = start;
+					if(!start)				
+					{
+						// problem with key formation
+						cout<<"Problem with key formation.."<<modkey<<endl;
+						break;
+					}
+	
+					// prepare value here
+					while(data!=start)
+					value.push_back(*data++);
+
+
+					for(int s=1;s<mapOfTags.size();s++)
+					{
+						if(mapOfTags[s] == key)	
+						{
+							mapOfTagsValues[s] = value;
+						}
+					}
+
+						
+					flag =1;
+			}
+			
+			start = end;
+					
+					   
+			if(flag == 1)
+			{
+					strcpy(ObjData.acRawdata,mapOfTagsValues[0].c_str());
+						strcat(ObjData.acRawdata, "|");
+						for(int s=1;s<mapOfTags.size();s++)
+					   {
+						   strcat(ObjData.acRawdata,mapOfTagsValues[s].c_str());
+						   strcat(ObjData.acRawdata, "|");
+						   mapOfTagsValues[s] = " ";
+						  
+					   }
+						cout<<ObjData.acRawdata<<endl;
+						 ObjData.iRowSz = strlen(ObjData.acRawdata);
+					   AddRow(ObjData);
+					   
+			}
+
+
+	}
+	return currpos;
+	cout<<"Complete file processing"<<endl;
+
+}
+
+// maestro bin file
+unsigned int ParseFile::ParseFileTyp8(const char * rawdata,long lBufSz,bool beof)
+{
+	unsigned int currpos=0;
+	const int LRECSZ=80;
+
+	while(currpos+LRECSZ<lBufSz)
+	{
+			// copy 80 bytes..memcpy since bytes is not in ascii
+			memcpy(ObjData.acRawdata,rawdata+currpos, LRECSZ);
+			// convert bcd to ascii
+			ObjUtil.etoa((unsigned char*)&ObjData.acRawdata, LRECSZ);
+			ObjData.iRowSz+=LRECSZ;
+			AddRow(ObjData);
+
+			// increement currpos
+			currpos+=LRECSZ;
+	}
+
+	return currpos;
+}
+
+unsigned int ParseFile::ParseFileTyp9(const char * rawdata,long lBufSz,bool beof){
+
+int currpos=0,iRecLen=0,i;
+char acLenbuf[10];
+char acbuf[4500];
+
+while(currpos < lBufSz){
+
+	for(i=0;((acLenbuf[i]=rawdata[currpos]) && rawdata[currpos] != '|');currpos++,i++);
+	acLenbuf[i]='\0';
+
+	iRecLen=atoi(acLenbuf);
+
+	if((currpos+iRecLen) > lBufSz ){
+		currpos=currpos-i;		
+		return currpos;
+	}
+
+	currpos++;
+	memcpy(&ObjData.acRawdata[0],rawdata+currpos,iRecLen+1);
+		ObjData.acRawdata[iRecLen]='\0';
+	ObjData.iRowSz=iRecLen;
+	for(i=0;i<iRecLen;i++){
+		if(ObjData.acRawdata[i] == '\n' || ObjData.acRawdata[i] == '\0' || ObjData.acRawdata[i] == 13)			
+			ObjData.acRawdata[i]=' ';
+	}
+		
+//cout<<ObjData.acRawdata<<endl;
+	AddRow(ObjData);
+
+	currpos=currpos+iRecLen+1;
+
+
+}
+
+return currpos;
+}
+
+
+/*
+Desc:print fileinfo at various level and reset on writing into log
+*/
+void ParseFile::PrintReport(FileInfo & InpInfo,char cRecTyp)
+{
+		ostringstream os;
+		int noOfControlGrp	= 12;
+		int	noOfAmts	   		= 2;
+
+
+		if(cRecTyp!='0'){			
+					//Print File COntrol
+					os<<cRecTyp<<"|";
+					os<<InpInfo.acOrgFileNm<<"|";
+					os<<InpInfo.iFileCd<<"|";
+					os<<InpInfo.bFileCtrlFlg<<"|";
+					os<<InpInfo.iFileno<<"|";
+					os<<InpInfo.szFileSize<<"|";
+					os<<InpInfo.szReadSize<<"|";
+					os<<InpInfo.iNoOfBlockRead<<"|";
+					os<<InpInfo.iProcTime<<"|";
+					os<<InpInfo.lRNO<<"|";
+					os<<InpInfo.lSuccCnt<<"|";
+					os<<InpInfo.lBadCnt<<"|";
+					os<<InpInfo.lDiscCnt;
+					for(int i=0 ;i<noOfControlGrp; i=i+1){
+						os<<"|"<<InpInfo.arrCntAmt[i].Cnt;
+						//for(int j=0; j<noOfAmts; j=j+1){
+							os<<"|"<<std::setprecision(15)<<InpInfo.arrCntAmt[i].Amt1;
+							os<<"|"<<std::setprecision(15)<<InpInfo.arrCntAmt[i].Amt2;
+						//}
+					}
+					os<<"|"<<InpInfo.cErrCode;
+	
+		}else{
+					//HDR
+					os<<"RECTYP"<<"|";
+					os<<"SUBNM"<<"|";
+					os<<"FILECD"<<"|";
+					os<<"CTRLFLG"<<"|";
+					os<<"UNIQCD"<<"|";
+					os<<"FILESIZE"<<"|";
+					os<<"READSZ"<<"|";
+					os<<"BLOCKREAD"<<"|";
+					os<<"PROCTIME"<<"|";
+					os<<"TXNCNT"<<"|";
+					os<<"SUCCCNT"<<"|";
+					os<<"BADCNT"<<"|";
+					os<<"DISCNT";
+					
+					int x	;
+					for(x=0 ;x<noOfControlGrp; x=x+1){
+						os<<"|T"<<x<<"CNT";
+						for(int j=0; j<noOfAmts; j=j+1){
+							os<<"|T"<<x<<"AMT"<<j+1;
+						}
+					}
+					os<<"|"<<"ERRCD";		
+		}
+
+		if(ofsProgWrite.is_open())
+		{
+				ofsProgWrite<<os.str()<<endl;
+		}	
+}
+
+void ParseFile::Close()
+{
+	switch(iMethodTyp)
+	{
+		case 1:
+						if(fp!=NULL)
+						fclose(fp);
+
+						fp=NULL;
+						break;
+		case 2:
+						ifs.close();
+						break;	
+	}
+
+}
+
+void ParseFile::RemoveNewLine(const char * src,char * dest,unsigned short & isrclen)
+{
+								int ipos=isrclen+1;
+								const char * s=src;
+								while((--ipos)>0)	
+								{
+																if( (*s=='\n') || (*s=='\r') )
+																{
+																								// bypass curr char..do not store it into out
+																								*s++;
+																								// reduce size by 1 for removing each char
+																								--isrclen;
+																								continue;
+
+																}
+
+
+																if(*s=='\0'){
+																				*dest = '0';	
+																}else{
+																				*dest = *s;
+																}
+                                  
+
+																*dest++;
+																*s++;
+																//*dest++=*s++;	
+								}
+
+								// append null char at end after removing char
+								if(!ipos)
+																*dest='\0';
+}
+
+void ParseFile::RemoveGarbage(const char * src,char * dest,unsigned short & isrclen)
+{
+		int ipos=isrclen+1;
+		const char * s=src;
+		int ichar=0;
+		while((--ipos)>0)	
+		{
+				ichar=(int)(*s);
+				if( (ichar<32) || ichar>126 )
+				{
+					// bypass curr char..do not store it into out
+					*s++;
+					// reduce size by 1 for removing each char
+					--isrclen;
+					continue;
+				}
+
+
+				*dest++=*s++;	
+		}
+
+		// append null char at end after removing char
+		if(!ipos)
+		*dest='\0';
+}
+
+bool ParseFile::EOJ()
+{
+
+		//TODO (Added for testing )call to initialize paring parameters
+		if(!ptrParser->EOJ()){
+			cout<<"void ParseFile::Init() failed"<<endl;
+			return false;
+		}
+		return true;
+}
+

@@ -1,0 +1,81 @@
+/*
+Author : MUKESH C PALIWAL	
+Date: 15-JUN-2018
+
+COMPONENT: P01
+Desc: this component will classfiy file into respective queue as defined in reference file.  
+			psuedocode for same is described below 
+
+Input: Input Location where pool of file will be stored by external program
+Output:  Output location where file will be classified as per configuration in reference file ...
+*/
+
+// files can be of text/xls/pdf format to read
+
+xls format: external program must convert it into csv format since csv format is comma separated file
+pdf format: since each pdf format might have different format ...we need to write program to convert this pdf into delimited text file
+encrypted file: decryption to be done by external program
+
+1: Lookup for file in input directory
+2: if file found then go to 3 else go to 9
+3: open the file 
+4: decide on filecd based on file format on input file 
+5: if filecd is identified succesfully then  ..go to 7
+6: if filecd is invalid then move that file to reject area...go to 8
+7: rename file with filecd+bankcd ...move file to respective Q-AREA
+8: move file to reject area
+9: go to 1
+
+/*
+Author : MUKESH C PALIWAL	
+Date: 15-JUN-2018
+
+COMPONENT: P02
+Desc: this program will convert file into buffer of rawdata.  
+			psuedocode for same is described below 
+
+Input: file with valid format
+Output: rawdata converted into single transaction to be processed 
+*/
+
+DEFINE WIP_DATA TO BE HOLD RAWDATA
+
+0: create row in FILE_INFO struct ...log file parameter into it
+1: open the file 
+2: bulk read from file and append to WIP_DATA...if EOF then go to 9
+3: prepare single txn from array and placed into buffer..
+4: move unread data into start of WIP_DATA
+9: close the file
+
+/*
+Author : MUKESH C PALIWAL	
+Date: 15-JUN-2018
+
+COMPONENT: P03
+Desc: this program will validate and identify txn belong to which output tank  
+			psuedocode for same is described below 
+
+Input: rawdata,filecd
+Output: parsercd,tankseqno(location in tank where data will be stored) 
+*/
+
+1: identify parsercd ...if valid then set parsercd else set parsercd=0
+2: if parsercd<>0 then get next slotno of inmemory tank...set into buffer
+
+/*
+Author : MUKESH C PALIWAL	
+Date: 15-JUN-2018
+
+COMPONENT: P04
+Desc: this program will convert single txn into single record.  
+			psuedocode for same is described below 
+
+Input: rawdata,sizeof rawdata,parsercd,tankseqno
+Output: rawdata converted into single record mapped into tank 
+*/
+
+1:parse rawdata into struct
+2:enrich struct with external data
+3:store struct into in-memory tank at location:tankseqno 
+4:update fileinfo
+

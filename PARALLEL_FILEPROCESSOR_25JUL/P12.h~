@@ -1,0 +1,11 @@
+#include "TankInterface.h"
+
+class P12:public TankInterface
+{
+	public:
+					P12();
+					~P12();
+	protected:
+					void EnrichData(Model &);
+					void StoreRecordIntoMem(Model &);
+}
