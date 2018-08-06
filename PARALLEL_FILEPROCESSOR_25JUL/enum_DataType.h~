@@ -1,9 +1,0 @@
-enum DATATYP
-{
-	VARCHAR,
-	CHAR,
-	FLOAT,
-	DOUBLE,
-	INTEGER ,
-	LONG
-};
